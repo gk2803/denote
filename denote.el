@@ -258,6 +258,17 @@ string, the inferred keywords are specific to the silo."
   :package-version '(denote . "4.2.0")
   :type 'boolean)
 
+(defcustom my-denote-autocomplete-keywords nil
+  "Whether to autocomplete keywords when creating note inside a denote buffer.
+
+When non-nil (the default), check if the buffer is a `denote-buffer' using
+`my-denote-buffer-is-note-p' and if it is autocomplete the keywords when prompting
+for a new note.."
+  :group 'denote
+  :safe (lambda (val) (or val (null val)))
+  :package-version '(denote . "4.1")
+  :type 'boolean)
+
 (defcustom denote-prompts '(title keywords)
   "Specify the prompts followed by relevant Denote commands.
 
@@ -1226,6 +1237,13 @@ Also enforce the rules of the file-naming scheme."
   "Alias for the function `denote-sluggify-keywords-and-apply-rules'.")
 
 ;;;;; Common helper functions
+
+
+
+(defun my-denote-buffer-is-note-p (buffer)
+  "Return non-nill if BUFFER string is a Denote buffer"
+  (when (and buffer)
+    (denote-file-is-note-p buffer)))
 
 (defun denote--file-empty-p (file)
   "Return non-nil if FILE is empty."
@@ -3334,7 +3352,10 @@ instead."
                                   (region-beginning)
                                   (region-end)))))))
         ('keywords (when (eq denote-use-keywords 'default)
-                     (setq keywords (denote-keywords-prompt))))
+                       (if (and my-denote-autocomplete-keywords
+                                  (my-denote-buffer-is-note-p buffer-file-name))
+                           (setq keywords (denote-keywords-prompt nil (mapconcat  'identity (denote-extract-keywords-from-path (buffer-file-name)) ",")))
+                         (setq keywords (denote-keywords-prompt)))))
         ('file-type (unless denote-use-file-type
                       (setq file-type (denote-file-type-prompt))))
         ('subdirectory (unless denote-use-directory

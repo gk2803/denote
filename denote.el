@@ -124,6 +124,16 @@
 ;; About the autoload: (info "(elisp) File Local Variables")
 
 ;;;###autoload (put 'denote-directory 'safe-local-variable (lambda (val) (or (stringp val) (listp val) (eq val 'local) (eq val 'default-directory))))
+
+(defcustom my-denote-autocomplete-keywords nil
+  "Whether to autocomplete keywords when creating a new Denote note from inside a buffer that
+contains an existing Denote note."
+  :group 'denote
+  :safe (lambda (val) (or val (null val)))
+  :package-version '(denote . "4.1")
+  :type 'boolean)
+
+
 (defcustom denote-directory (expand-file-name "~/Documents/notes/")
   "Directory, as a string, for storing personal notes.
 This is the destination `denote' and all other file-creating Denote
@@ -3334,7 +3344,13 @@ instead."
                                   (region-beginning)
                                   (region-end)))))))
         ('keywords (when (eq denote-use-keywords 'default)
-                     (setq keywords (denote-keywords-prompt))))
+                     (if (and my-denote-autocomplete-keywords
+                              (buffer-file-name)
+                              (denote-file-has-denoted-filename-p (buffer-file-name)))
+                         (setq keywords (denote-keywords-prompt nil ((lambda (string)
+                                                                       (string-join (split-string string "_" :omit-nulls "_") ","))
+                                                                     (denote-retrieve-filename-keywords (buffer-file-name)))))
+                       (setq keywords (denote-keywords-prompt)))))
         ('file-type (unless denote-use-file-type
                       (setq file-type (denote-file-type-prompt))))
         ('subdirectory (unless denote-use-directory

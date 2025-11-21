@@ -2352,6 +2352,10 @@ Consult the `denote-file-types' for how this is used."
      :date-value-reverse-function denote-extract-date-from-front-matter
      :link denote-org-link-format
      :link-in-context-regexp denote-org-link-in-context-regexp)
+    (xournalpp
+     :extension ".xopp"
+     :date-value-function denote-date-iso-8601
+     :link denote-org-link-format))
   "Alist of variable `denote-file-type' and their format properties.
 
 Each element is of the form (SYMBOL PROPERTY-LIST).  SYMBOL is one of

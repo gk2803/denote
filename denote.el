@@ -124,6 +124,16 @@
 ;; About the autoload: (info "(elisp) File Local Variables")
 
 ;;;###autoload (put 'denote-directory 'safe-local-variable (lambda (val) (or (stringp val) (listp val) (eq val 'local) (eq val 'default-directory))))
+
+(defcustom my-denote-autocomplete-keywords nil
+  "Whether to autocomplete keywords when creating a new Denote note from inside a buffer that
+contains an existing Denote note."
+  :group 'denote
+  :safe (lambda (val) (or val (null val)))
+  :package-version '(denote . "4.1")
+  :type 'boolean)
+
+
 (defcustom denote-directory (expand-file-name "~/Documents/notes/")
   "Directory, as a string, for storing personal notes.
 This is the destination `denote' and all other file-creating Denote
@@ -639,8 +649,6 @@ command."
   :package-version '(denote . "3.1.0")
   :link '(info-link "(denote) The denote-templates option")
   :group 'denote)
-
-(make-obsolete-variable 'denote-rename-no-confirm 'denote-rename-confirmations "3.0.0")
 
 (defcustom denote-rename-confirmations '(rewrite-front-matter modify-file-name)
   "Make renaming commands prompt for confirmations.
@@ -1292,8 +1300,15 @@ For our purposes, a note must satisfy `file-regular-p' and
 `denote-filename-is-note-p'."
   (and (file-regular-p file) (denote-filename-is-note-p file)))
 
-(make-obsolete 'denote-filename-is-note-p nil "4.1.0")
-(make-obsolete 'denote-file-is-note-p nil "4.1.0")
+(define-obsolete-function-alias
+  'denote-filename-is-note-p
+  'denote-file-has-denoted-filename-p
+  "4.1.0")
+
+(define-obsolete-function-alias
+  'denote-file-is-note-p
+  'denote-file-has-denoted-filename-p
+  "4.1.0")
 
 (defun denote-file-has-denoted-filename-p (file)
   "Return non-nil if FILE respects the file-naming scheme of Denote.
@@ -1573,10 +1588,10 @@ Return the absolute path to the matching file."
                              (mapcar #'denote-get-file-name-relative-to-denote-directory files)
                            files))
          (prompt (if single-dir-p
-                     (format "%s in %s: "
+                     (format "%s: " (or prompt-text "Select FILE"))
+                   (format "%s in %s: "
                              (or prompt-text "Select FILE")
-                             (propertize default-directory 'face 'denote-faces-prompt-current-name))
-                   (format "%s: " (or prompt-text "Select FILE"))))
+                             (propertize default-directory 'face 'denote-faces-prompt-current-name))))
          (input (completing-read
                  prompt
                  (denote--completion-table 'file relative-files)
@@ -2070,11 +2085,6 @@ Filter inferred keywords per `denote-keywords-to-not-infer-regexp'."
 (defalias 'denote--keyword-history 'denote-keyword-history
   "Compatibility alias for `denote-keyword-history'.")
 
-(make-obsolete
- 'denote-convert-file-name-keywords-to-crm
- nil
- "3.0.0: Keywords are always returned as a list")
-
 (defun denote--keywords-crm (keywords &optional prompt initial)
   "Use `completing-read-multiple' for KEYWORDS.
 With optional PROMPT, use it instead of a generic text for file
@@ -2140,6 +2150,18 @@ Denote file-naming scheme."
 #+signature:  %s
 \n"
   "Org front matter.
+It is passed to `format' with arguments TITLE, DATE, KEYWORDS,
+ID.  Advanced users are advised to consult Info node `(denote)
+Change the front matter format'.")
+
+(defvar denote-TeX-front-matter 
+  "\\iffalse
+title:      %s
+date:       %s
+tags:       %s
+identifier: %s
+\\fi\n\n"
+  "Tex front matter.
 It is passed to `format' with arguments TITLE, DATE, KEYWORDS,
 ID.  Advanced users are advised to consult Info node `(denote)
 Change the front matter format'.")
@@ -2327,7 +2349,35 @@ Consult the `denote-file-types' for how this is used."
      :date-value-reverse-function denote-extract-date-from-front-matter
      :link-retrieval-format "[denote:%VALUE%]"
      :link denote-org-link-format
-     :link-in-context-regexp denote-org-link-in-context-regexp))
+     :link-in-context-regexp denote-org-link-in-context-regexp)
+    (tex
+     :extension ".tex"
+     :front-matter my-denote-TeX-front-matter
+     :title-key-regexp "^title\\s-*:"
+     :title-value-function denote-format-string-for-org-front-matter
+     :title-value-reverse-function denote-trim-whitespace
+     :keywords-key-regexp "^tags\\s-*:"
+     :keywords-value-function denote-format-keywords-for-text-front-matter
+     :keywords-value-reverse-function denote-extract-keywords-from-front-matter
+     :signature-key-regexp "^signature\\s-*:"
+     :signature-value-function denote-format-string-for-org-front-matter
+     :signature-value-reverse-function denote-trim-whitespace
+     :identifier-key-regexp "^identifier\\s-*:"
+     :identifier-value-function denote-format-string-for-org-front-matter
+     :identifier-value-reverse-function denote-trim-whitespace
+     :date-key-regexp "^date\\s-*:"
+     :date-value-function denote-date-iso-8601
+     :date-value-reverse-function denote-extract-date-from-front-matter
+     :link denote-org-link-format
+     :link-in-context-regexp denote-org-link-in-context-regexp)
+    (xournalpp
+     :extension ".xopp"
+     :date-value-function denote-date-iso-8601
+     :link denote-org-link-format)
+    (png
+     :extension ".png"
+     :date-value-function denote-date-iso-8601
+     :link denote-org-link-format))
   "Alist of variable `denote-file-type' and their format properties.
 
 Each element is of the form (SYMBOL PROPERTY-LIST).  SYMBOL is one of
@@ -3352,10 +3402,13 @@ instead."
                                   (region-beginning)
                                   (region-end)))))))
         ('keywords (when (eq denote-use-keywords 'default)
-                       (if (and my-denote-autocomplete-keywords
-                                  (my-denote-buffer-is-note-p buffer-file-name))
-                           (setq keywords (denote-keywords-prompt nil (mapconcat  'identity (denote-extract-keywords-from-path (buffer-file-name)) ",")))
-                         (setq keywords (denote-keywords-prompt)))))
+                     (if (and my-denote-autocomplete-keywords
+                              (buffer-file-name)
+                              (denote-file-has-denoted-filename-p (buffer-file-name)))
+                         (setq keywords (denote-keywords-prompt nil ((lambda (string)
+                                                                       (string-join (split-string string "_" :omit-nulls "_") ","))
+                                                                     (denote-retrieve-filename-keywords (buffer-file-name)))))
+                       (setq keywords (denote-keywords-prompt)))))
         ('file-type (unless denote-use-file-type
                       (setq file-type (denote-file-type-prompt))))
         ('subdirectory (unless denote-use-directory
@@ -6269,11 +6322,6 @@ search for."
 
 (make-obsolete 'denote-link--find-file-at-button nil "4.0.0")
 
-(make-obsolete
- 'denote-link-buttonize-buffer
- 'denote-fontify-links-mode
- "Use the `denote-fontify-links-mode', as it works better than buttonization. Since 3.0.0")
-
 ;; NOTE 2025-03-24: This does not work for query links because of how
 ;; `markdown-follow-link-at-point' is implemented to always check for
 ;; links.
@@ -6474,8 +6522,6 @@ major mode is not `org-mode' (or derived therefrom).  Consider using
 
 (defvar denote-link--prepare-links-format "- %s\n"
   "Format specifiers for `denote-add-links'.")
-
-(make-obsolete-variable 'denote-link-add-links-sort nil "3.1.0")
 
 (defun denote-link--prepare-links (files current-file-type id-only &optional no-sort)
   "Prepare links to FILES from CURRENT-FILE-TYPE.

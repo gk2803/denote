@@ -2136,6 +2136,18 @@ It is passed to `format' with arguments TITLE, DATE, KEYWORDS,
 ID.  Advanced users are advised to consult Info node `(denote)
 Change the front matter format'.")
 
+(defvar denote-TeX-front-matter 
+  "\\iffalse
+title:      %s
+date:       %s
+tags:       %s
+identifier: %s
+\\fi\n\n"
+  "Tex front matter.
+It is passed to `format' with arguments TITLE, DATE, KEYWORDS,
+ID.  Advanced users are advised to consult Info node `(denote)
+Change the front matter format'.")
+
 (defvar denote-yaml-front-matter
   "---
 title:      %s

@@ -2355,6 +2355,10 @@ Consult the `denote-file-types' for how this is used."
     (xournalpp
      :extension ".xopp"
      :date-value-function denote-date-iso-8601
+     :link denote-org-link-format)
+    (png
+     :extension ".png"
+     :date-value-function denote-date-iso-8601
      :link denote-org-link-format))
   "Alist of variable `denote-file-type' and their format properties.
 

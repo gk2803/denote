@@ -2372,12 +2372,45 @@ Consult the `denote-file-types' for how this is used."
      :link-in-context-regexp denote-org-link-in-context-regexp)
     (xournalpp
      :extension ".xopp"
+     :title-key-regexp "^title\\s-*:"
+     :title-value-function denote-format-string-for-org-front-matter
+     :title-value-reverse-function denote-trim-whitespace
+     :keywords-key-regexp "^tags\\s-*:"
+     :keywords-value-function denote-format-keywords-for-text-front-matter
+     :keywords-value-reverse-function denote-extract-keywords-from-front-matter
+     :signature-key-regexp "^signature\\s-*:"
+     :signature-value-function denote-format-string-for-org-front-matter
+     :signature-value-reverse-function denote-trim-whitespace
+     :identifier-key-regexp "^identifier\\s-*:"
+     :identifier-value-function denote-format-string-for-org-front-matter
+     :identifier-value-reverse-function denote-trim-whitespace
+     :date-key-regexp "^date\\s-*:"
      :date-value-function denote-date-iso-8601
-     :link denote-org-link-format)
+     :date-value-reverse-function denote-extract-date-from-front-matter
+     :link denote-org-link-format
+     :link-in-context-regexp denote-org-link-in-context-regexp
+     )
     (png
      :extension ".png"
+     :title-key-regexp "^title\\s-*:"
+     :title-value-function denote-format-string-for-org-front-matter
+     :title-value-reverse-function denote-trim-whitespace
+     :keywords-key-regexp "^tags\\s-*:"
+     :keywords-value-function denote-format-keywords-for-text-front-matter
+     :keywords-value-reverse-function denote-extract-keywords-from-front-matter
+     :signature-key-regexp "^signature\\s-*:"
+     :signature-value-function denote-format-string-for-org-front-matter
+     :signature-value-reverse-function denote-trim-whitespace
+     :identifier-key-regexp "^identifier\\s-*:"
+     :identifier-value-function denote-format-string-for-org-front-matter
+     :identifier-value-reverse-function denote-trim-whitespace
+     :date-key-regexp "^date\\s-*:"
      :date-value-function denote-date-iso-8601
-     :link denote-org-link-format))
+     :date-value-reverse-function denote-extract-date-from-front-matter
+     :link denote-org-link-format
+     :link-in-context-regexp denote-org-link-in-context-regexp
+     )
+    )
   "Alist of variable `denote-file-type' and their format properties.
 
 Each element is of the form (SYMBOL PROPERTY-LIST).  SYMBOL is one of

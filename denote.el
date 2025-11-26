@@ -3437,7 +3437,8 @@ instead."
         ('keywords (when (eq denote-use-keywords 'default)
                      (if (and my-denote-autocomplete-keywords
                               (buffer-file-name)
-                              (denote-file-has-denoted-filename-p (buffer-file-name)))
+                              (denote-file-has-denoted-filename-p (buffer-file-name))
+                              (denote-retrieve-filename-keywords (buffer-file-name)))
                          (setq keywords (denote-keywords-prompt nil ((lambda (string)
                                                                        (string-join (split-string string "_" :omit-nulls "_") ","))
                                                                      (denote-retrieve-filename-keywords (buffer-file-name)))))

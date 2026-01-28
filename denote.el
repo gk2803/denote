@@ -2352,7 +2352,7 @@ Consult the `denote-file-types' for how this is used."
      :link-in-context-regexp denote-org-link-in-context-regexp)
     (tex
      :extension ".tex"
-     :front-matter my-denote-TeX-front-matter
+     :front-matter denote-TeX-front-matter
      :title-key-regexp "^title\\s-*:"
      :title-value-function denote-format-string-for-org-front-matter
      :title-value-reverse-function denote-trim-whitespace
@@ -2410,6 +2410,27 @@ Consult the `denote-file-types' for how this is used."
      :link denote-org-link-format
      :link-in-context-regexp denote-org-link-in-context-regexp
      )
+    (python
+     :extension ".py"
+     :front-matter denote-org-front-matter
+     :title-key-regexp "^#\\+title\\s-*:"
+     :title-value-function denote-format-string-for-org-front-matter
+     :title-value-reverse-function denote-trim-whitespace
+     :keywords-key-regexp "^#\\+filetags\\s-*:"
+     :keywords-value-function denote-format-keywords-for-org-front-matter
+     :keywords-value-reverse-function denote-extract-keywords-from-front-matter
+     :signature-key-regexp "^#\\+signature\\s-*:"
+     :signature-value-function denote-format-string-for-org-front-matter
+     :signature-value-reverse-function denote-trim-whitespace
+     :identifier-key-regexp "^#\\+identifier\\s-*:"
+     :identifier-value-function denote-format-string-for-org-front-matter
+     :identifier-value-reverse-function denote-trim-whitespace
+     :date-key-regexp "^#\\+date\\s-*:"
+     :date-value-function denote-date-org-timestamp
+     :date-value-reverse-function denote-extract-date-from-front-matter
+     :link-retrieval-format "[denote:%VALUE%]"
+     :link denote-org-link-format
+     :link-in-context-regexp denote-org-link-in-context-regexp)
     )
   "Alist of variable `denote-file-type' and their format properties.
 

@@ -1,11 +1,11 @@
 ;;; denote.el --- Simple notes with an efficient file-naming scheme -*- lexical-binding: t -*-
 
-;; Copyright (C) 2022-2025  Free Software Foundation, Inc.
+;; Copyright (C) 2022-2026  Free Software Foundation, Inc.
 
 ;; Author: Protesilaos Stavrou <info@protesilaos.com>
 ;; Maintainer: Protesilaos Stavrou <info@protesilaos.com>
 ;; URL: https://github.com/protesilaos/denote
-;; Version: 4.1.1
+;; Version: 4.1.3
 ;; Package-Requires: ((emacs "28.1"))
 
 ;; This file is NOT part of GNU Emacs.
@@ -25,86 +25,18 @@
 
 ;;; Commentary:
 
-;; Denote aims to be a simple-to-use, focused-in-scope, and effective
-;; note-taking and file-naming tool for Emacs.
-;;
-;; Denote is based on the idea that files should follow a predictable
-;; and descriptive file-naming scheme.  The file name must offer a
-;; clear indication of what the contents are about, without reference
-;; to any other metadata.  Denote basically streamlines the creation
-;; of such files or file names while providing facilities to link
-;; between them (where those files are editable).
+;; Denote is a simple note-taking tool for Emacs.  It is based on the idea
+;; that notes should follow a predictable and descriptive file-naming
+;; scheme.  The file name must offer a clear indication of what the note is
+;; about, without reference to any other metadata.  Denote basically
+;; streamlines the creation of such files while providing facilities to
+;; link between them.
 ;;
 ;; Denote's file-naming scheme is not limited to "notes".  It can be used
 ;; for all types of file, including those that are not editable in Emacs,
 ;; such as videos.  Naming files in a consistent way makes their
 ;; filtering and retrieval considerably easier.  Denote provides relevant
 ;; facilities to rename files, regardless of file type.
-;;
-;; The manual describes all the technicalities about the file-naming
-;; scheme, points of entry to creating new notes, commands to check
-;; links between notes, and more: ;; <https://protesilaos.com/emacs/denote>.
-;; If you have the info manual available, evaluate:
-;;
-;;    (info "(denote) Top")
-;;
-;; What follows is a general overview of its core core design
-;; principles (again: please read the manual for the technicalities):
-;;
-;; * Predictability :: File names must follow a consistent and
-;;   descriptive naming convention (see the manual's "The file-naming
-;;   scheme").  The file name alone should offer a clear indication of
-;;   what the contents are, without reference to any other metadatum.
-;;   This convention is not specific to note-taking, as it is pertinent
-;;   to any form of file that is part of the user's long-term storage
-;;   (see the manual's "Renaming files").
-;;
-;; * Composability :: Be a good Emacs citizen, by integrating with other
-;;   packages or built-in functionality instead of re-inventing
-;;   functions such as for filtering or greping.  The author of Denote
-;;   (Protesilaos, aka "Prot") writes ordinary notes in plain text
-;;   (`.txt'), switching on demand to an Org file only when its expanded
-;;   set of functionality is required for the task at hand (see the
-;;   manual's "Points of entry").
-;;
-;; * Portability :: Notes are plain text and should remain portable.
-;;   The way Denote writes file names, the front matter it includes in
-;;   the note's header, and the links it establishes must all be
-;;   adequately usable with standard Unix tools.  No need for a databse
-;;   or some specialised software.  As Denote develops and this manual
-;;   is fully fleshed out, there will be concrete examples on how to do
-;;   the Denote-equivalent on the command-line.
-;;
-;; * Flexibility :: Do not assume the user's preference for a
-;;   note-taking methodology.  Denote is conceptually similar to the
-;;   Zettelkasten Method, which you can learn more about in this
-;;   detailed introduction: <https://zettelkasten.de/introduction/>.
-;;   Notes are atomic (one file per note) and have a unique identifier.
-;;   However, Denote does not enforce a particular methodology for
-;;   knowledge management, such as a restricted vocabulary or mutually
-;;   exclusive sets of keywords.  Denote also does not check if the user
-;;   writes thematically atomic notes.  It is up to the user to apply
-;;   the requisite rigor and/or creativity in pursuit of their preferred
-;;   workflow (see the manual's "Writing metanotes").
-;;
-;; * Hackability :: Denote's code base consists of small and reusable
-;;   functions.  They all have documentation strings.  The idea is to
-;;   make it easier for users of varying levels of expertise to
-;;   understand what is going on and make surgical interventions where
-;;   necessary (e.g. to tweak some formatting).  In this manual, we
-;;   provide concrete examples on such user-level configurations (see
-;;   the manual's "Keep a journal or diary").
-;;
-;; Now the important part...  "Denote" is the familiar word, though it
-;; also is a play on the "note" concept.  Plus, we can come up with
-;; acronyms, recursive or otherwise, of increasingly dubious utility
-;; like:
-;;
-;; + Don't Ever Note Only The Epiphenomenal
-;; + Denote Everything Neatly; Omit The Excesses
-;;
-;; But we'll let you get back to work.  Don't Eschew or Neglect your
-;; Obligations, Tasks, and Engagements.
 
 ;;; Code:
 
@@ -329,8 +261,7 @@ of the following:
   home and work, or even priorities like a, b, c. One other use-case is
   to implement a sequencing scheme that makes notes have hierarchical
   relationships.  This is handled by our optional extension
-  denote-sequence.el, which is part of the denote package (read the
-  manual).
+  denote-sequence.el, which is its own package (read the manual).
 
 The prompts occur in the given order.
 
@@ -928,11 +859,14 @@ This determines how `denote-link' and related functions create a link
 description by default.
 
 The value can be either a function or a string.  If it is a function, it
-is called with one argument, the file, and should return a string
-representing the link description.
+is called with two arguments, the file and file type as a symbol among
+`denote-file-types'.  It should return a string representing the link
+description.  The default is a function that returns the active region
+or the title of the note (with the signature if present).
 
-The default is a function that returns the active region or the title of
-the note (with the signature if present).
+For backward compatibility, the function can also take a single
+parameter, the given file.  In that case, it is responsible for figuring
+out the file type in order to return the correct description.
 
 If the value is a string, it treats specially the following specifiers:
 
@@ -1011,20 +945,13 @@ The note's ID is derived from the date and time of its creation.")
 
 ;;;; File helper functions
 
-(defun denote--completion-table (category candidates)
-  "Pass appropriate metadata CATEGORY to completion CANDIDATES."
+(defun denote-get-completion-table (candidates &rest metadata)
+  "Return completion table with CANDIDATES and METADATA.
+CANDIDATES is a list of strings.  METADATA is described in
+`completion-metadata'."
   (lambda (string pred action)
     (if (eq action 'metadata)
-        `(metadata (category . ,category))
-      (complete-with-action action candidates string pred))))
-
-(defun denote--completion-table-no-sort (category candidates)
-  "Pass appropriate metadata CATEGORY to completion CANDIDATES.
-Like `denote--completion-table' but also disable sorting."
-  (lambda (string pred action)
-    (if (eq action 'metadata)
-        `(metadata (category . ,category)
-                   (display-sort-function . ,#'identity))
+        (cons 'metadata metadata)
       (complete-with-action action candidates string pred))))
 
 (defun denote--default-directory-is-silo-p ()
@@ -1076,18 +1003,35 @@ to override what this function returns."
   (not (cdr (denote-directories))))
 
 (defun denote--get-common-root-directory (directories)
-  "Return common root directory among DIRECTORIES."
-  (if-let* ((parts (mapcar (lambda (directory) (split-string directory "/" :omit-nulls)) directories))
-            (common-parent (seq-reduce
-                            (lambda (dir-parts comparison-parts)
-                              (let ((common nil))
-                                (dolist (part dir-parts)
-                                  (when (member part comparison-parts)
-                                    (push part common)))
-                                (nreverse common)))
-                            parts (car parts))))
-      (format "/%s/" (mapconcat #'identity common-parent "/"))
-    "/"))
+  "Return common root directory among DIRECTORIES.
+DIRECTORIES are absolute file system paths."
+  (cond
+   ((or (null directories)
+        (not (seq-every-p
+              (lambda (d)
+                (and (file-name-absolute-p d)
+                     (not (string-prefix-p "~" d))))
+              directories)))
+    (error "DIRECTORIES must be a list of absolute filesystem paths, not `%S'" directories))
+   ((null (cdr directories))
+    (car directories))
+   ((let* ((parts (mapcar
+                   (lambda (dir)
+                     (split-string dir "/" :omit-nulls))
+                   directories))
+           (common-prefix (car parts)))
+      (dolist (part (cdr parts))
+        (let ((new-common-prefix nil))
+          (while (and common-prefix
+                      part
+                      (string= (car common-prefix) (car part)))
+            (push (car common-prefix) new-common-prefix)
+            (setq common-prefix (cdr common-prefix))
+            (setq part (cdr part)))
+          (setq common-prefix (nreverse new-common-prefix))))
+      (if common-prefix
+          (format "/%s/" (mapconcat #'identity common-prefix "/"))
+        "/")))))
 
 (defun denote-directories-get-common-root ()
   "Get the common root directory of `denote-directories'."
@@ -1348,17 +1292,19 @@ what remains."
   (and (file-writable-p file)
        (denote-file-has-supported-extension-p file)))
 
-(defun denote-get-file-name-relative-to-denote-directory (file)
-  "Return name of FILE relative to the variable `denote-directory'.
-FILE must be an absolute path."
-  (when-let* ((directories (denote-directories))
-              ((file-name-absolute-p file))
-              (file-name (expand-file-name file))
-              (directory (seq-find
+(defun denote--get-file-name-relative-to-directories (file directories)
+  "Return FILE relative to one of the DIRECTORIES."
+  (unless (file-name-absolute-p file)
+    (error "The file `%s' is not absolute" file))
+  (when-let* ((directory (seq-find
                           (lambda (d)
-                            (string-prefix-p d file-name))
+                            (string-prefix-p d file))
                           directories)))
-    (substring-no-properties file-name (length directory))))
+    (substring-no-properties file (length directory))))
+
+(defun denote-get-file-name-relative-to-denote-directory (file)
+  "Return FILE relative to the variable `denote-directory'."
+  (denote--get-file-name-relative-to-directories file (denote-directories)))
 
 (defun denote-extract-id-from-string (string)
   "Return existing Denote identifier in STRING, else nil."
@@ -1370,61 +1316,54 @@ FILE must be an absolute path."
   (and (stringp denote-excluded-directories-regexp)
        (string-match-p denote-excluded-directories-regexp file)))
 
-(defun denote--directory-files-recursively-predicate (file)
-  "Predicate used by `directory-files-recursively' on FILE.
-
-Return t if FILE is valid, else return nil."
-  (let ((rel (denote-get-file-name-relative-to-denote-directory file)))
-    (cond
-     ((string-match-p "\\`\\." rel) nil)
-     ((string-match-p "/\\." rel) nil)
-     ((denote--exclude-directory-regexp-p rel) nil)
-     ((file-readable-p file)))))
-
 (defun denote--directory-all-files-recursively ()
-  "Return list of all files in variable `denote-directory'.
+  "Return list of all files in variable `denote-directories'.
 Avoids traversing dotfiles (unconditionally) and whatever matches
 `denote-excluded-directories-regexp'."
-  (apply #'append
-         (mapcar
-          (lambda (directory)
-            (directory-files-recursively
-             directory
-             directory-files-no-dot-files-regexp
-             :include-directories
-             #'denote--directory-files-recursively-predicate
-             :follow-symlinks))
-          (denote-directories))))
+  (let* ((directories (denote-directories))
+         (predicate-fn
+          (lambda (file)
+            (let ((rel (denote--get-file-name-relative-to-directories file directories)))
+              (cond
+               ((string-match-p "\\`\\." rel) nil)
+               ((string-match-p "/\\." rel) nil)
+               ((denote--exclude-directory-regexp-p rel) nil)
+               ((file-readable-p file)))))))
+    (apply #'append
+           (mapcar
+            (lambda (directory)
+              (directory-files-recursively
+               directory
+               directory-files-no-dot-files-regexp
+               :include-directories
+               predicate-fn
+               :follow-symlinks))
+            directories))))
 
 (defun denote--file-excluded-p (file)
   "Return non-file if FILE matches `denote-excluded-files-regexp'."
   (and denote-excluded-files-regexp
        (string-match-p denote-excluded-files-regexp file)))
 
-(define-obsolete-function-alias
-  'denote--directory-get-files
-  'denote-directory-get-files
-  "4.1.0")
-
-(defun denote-directory-get-files ()
+(defun denote--directory-get-files ()
   "Return list with full path of valid files in variable `denote-directory'.
 Consider files that satisfy `denote-file-has-denoted-filename-p' and
 are not backups."
-  (mapcar
-   #'expand-file-name
-   (seq-filter
-    (lambda (file)
-      (and (file-regular-p file)
-           (denote-file-has-denoted-filename-p file)
-           (not (denote--file-excluded-p file))
-           (not (backup-file-name-p file))))
-    (denote--directory-all-files-recursively))))
+  (seq-filter
+   (lambda (file)
+     (and (file-regular-p file)
+          (denote-file-has-denoted-filename-p file)
+          (not (denote--file-excluded-p file))
+          (not (backup-file-name-p file))))
+   (denote--directory-all-files-recursively)))
 
-(defvar denote-directory-get-files-function #'denote-directory-get-files
-  "Function to return list of Denote files.
-Each file is a string representing an absolute file system path.  This
-is intended for use in the function `denote-directory-files'.")
+(make-obsolete-variable
+ 'denote-directory-get-files-function
+ "advanced users should write an advice for `denote-directory-files'"
+ "4.2.0")
 
+;; The HAS-IDENTIFIER is there because we support cases where files do
+;; not have an identifier.
 (defun denote-directory-files (&optional files-matching-regexp omit-current text-only exclude-regexp has-identifier)
   "Return list of absolute file paths in variable `denote-directory'.
 Files that match `denote-excluded-files-regexp' are excluded from the
@@ -1449,14 +1388,15 @@ OMIT-CURRENT have been applied.
 
 With optional HAS-IDENTIFIER as a non-nil value, limit the results to
 files that have an identifier."
-  (let ((files (funcall denote-directory-get-files-function)))
+  (let ((files (denote--directory-get-files)))
     (when (and omit-current buffer-file-name (denote-file-has-identifier-p buffer-file-name))
       (setq files (delete buffer-file-name files)))
     (when files-matching-regexp
-      (setq files (seq-filter
-                   (lambda (f)
-                     (string-match-p files-matching-regexp (denote-get-file-name-relative-to-denote-directory f)))
-                   files)))
+      (let ((dirs (denote-directories)))
+        (setq files (seq-filter
+                     (lambda (f)
+                       (string-match-p files-matching-regexp (denote--get-file-name-relative-to-directories f dirs)))
+                     files))))
     (when text-only
       (setq files (seq-filter #'denote-file-has-supported-extension-p files)))
     (when has-identifier
@@ -1472,14 +1412,15 @@ files that have an identifier."
   "Return list of subdirectories in variable `denote-directory'.
 Omit dotfiles (such as .git) unconditionally.  Also exclude
 whatever matches `denote-excluded-directories-regexp'."
-  (seq-remove
-   (lambda (filename)
-     (let ((rel (denote-get-file-name-relative-to-denote-directory filename)))
-       (or (not (file-directory-p filename))
-           (string-match-p "\\`\\." rel)
-           (string-match-p "/\\." rel)
-           (denote--exclude-directory-regexp-p rel))))
-   (denote--directory-all-files-recursively)))
+  (let ((dirs (denote-directories)))
+    (seq-remove
+     (lambda (filename)
+       (let ((rel (denote--get-file-name-relative-to-directories filename dirs)))
+         (or (not (file-directory-p filename))
+             (string-match-p "\\`\\." rel)
+             (string-match-p "/\\." rel)
+             (denote--exclude-directory-regexp-p rel))))
+     (denote--directory-all-files-recursively))))
 
 ;; TODO 2023-01-24: Perhaps there is a good reason to make this a user
 ;; option, but I am keeping it as a generic variable for now.
@@ -1558,6 +1499,75 @@ the title prompt of `denote-open-or-create' and related commands.")
 Only ever `let' bind this, otherwise the restriction will always be
 there.")
 
+(defun denote-file-prompt-group (file transform)
+  "Retun group of FILE if TRANSFORM is non-nil, per `completion-metadata'."
+  (cond
+   ;; FIXME 2025-12-16: Why do we not get highlights of matched
+   ;; visible words?  It works if I just return FILE.
+   (transform (or (denote-retrieve-filename-title file) file))
+   ((file-name-directory file))
+   ((file-name-extension file))
+   (t "Other files")))
+
+(defun denote-file-prompt--format-identifier (file)
+  "Return identifier of FILE for `denote-file-prompt-affixate'."
+  (let* ((identifier (denote-retrieve-filename-identifier file))
+         (date-or-id (or (ignore-errors (denote-id-to-date identifier)) identifier))
+         (propertized (propertize date-or-id 'face 'completions-annotations)))
+    (format "%s " propertized)))
+
+(defun denote-file-prompt--format-keywords-and-signature (file)
+  "Return keywords and signature of FILE for `denote-file-prompt-affixate'."
+  (let ((keywords (denote-retrieve-filename-keywords file))
+        (signature (denote-retrieve-filename-signature file)))
+    (when-let* ((combined (cond
+                           ((and keywords signature) (concat "=" signature "  " keywords))
+                           (keywords)
+                           (signature))))
+      (format " %s%s"
+              (if (eq completions-format 'one-column)
+                  (propertize " " 'display '(space :align-to 90))
+                " ")
+              (propertize combined 'face 'completions-annotations)))))
+
+(defun denote-file-prompt-affixate (files)
+  "Affixate FILES.
+Use the identifier as a prefix and the keywords as a suffix."
+  (mapcar
+   (lambda (file)
+     (list
+      file
+      (or (denote-file-prompt--format-identifier file) "")
+      (or (denote-file-prompt--format-keywords-and-signature file) "")))
+   files))
+
+(defun denote-file-prompt-sort (files)
+  "Sort FILES for `denote-file-prompt', per `completion-metadata'."
+  (sort files #'denote-sort-modified-time-greaterp))
+
+(defvar denote-file-prompt-extra-metadata
+  (list
+   ;; NOTE 2025-12-15: If we use the `file' category, then we are
+   ;; subject to the `completion-category-overrides'.  This is a
+   ;; problem because the user will want to, for example, sort
+   ;; directories before files, but then we cannot have our sort here.
+   (cons 'category 'denote-file)
+   (cons 'group-function #'denote-file-prompt-group)
+   (cons 'affixation-function #'denote-file-prompt-affixate)
+   (cons 'display-sort-function #'denote-file-prompt-sort))
+  "Extra `completion-metadata' for the `denote-file-prompt'.
+This is in addition to the completion category, which is constant.")
+
+(with-eval-after-load 'all-the-icons
+  (cl-defmethod all-the-icons-completion-get-icon (cand (_cat (eql denote-file)))
+    "Return the icon for the candidate CAND of completion category denote-file."
+    (all-the-icons-completion-get-icon cand 'file)))
+
+(with-eval-after-load 'nerd-icons
+  (cl-defmethod nerd-icons-completion-get-icon (cand (_cat (eql denote-file)))
+    "Return the icon for the candidate CAND of completion category denote-file."
+    (nerd-icons-completion-get-icon cand 'file)))
+
 (defun denote-file-prompt (&optional files-matching-regexp prompt-text no-require-match has-identifier)
   "Prompt for file in variable `denote-directory'.
 Files that match `denote-excluded-files-regexp' are excluded from the
@@ -1575,17 +1585,21 @@ With optional HAS-IDENTIFIER, only show candidates that have an
 identifier.
 
 Return the absolute path to the matching file."
-  (let* ((single-dir-p (denote-has-single-denote-directory-p))
+  (let* ((roots (denote-directories))
+         (single-dir-p (null (cdr roots)))
          ;; Some external program may use `default-directory' with the
          ;; relative file paths of the completion candidates.
          (default-directory (if single-dir-p
-                                (car (denote-directories))
+                                (car roots)
                               (denote-directories-get-common-root)))
          (files (denote-directory-files
                  (or denote-file-prompt-use-files-matching-regexp files-matching-regexp)
                  :omit-current nil nil has-identifier))
          (relative-files (if single-dir-p
-                             (mapcar #'denote-get-file-name-relative-to-denote-directory files)
+                             (mapcar
+                              (lambda (file)
+                                (denote--get-file-name-relative-to-directories file roots))
+                              files)
                            files))
          (prompt (if single-dir-p
                      (format "%s: " (or prompt-text "Select FILE"))
@@ -1594,8 +1608,8 @@ Return the absolute path to the matching file."
                              (propertize default-directory 'face 'denote-faces-prompt-current-name))))
          (input (completing-read
                  prompt
-                 (denote--completion-table 'file relative-files)
-                 nil (unless no-require-match :require-match)
+                 (apply 'denote-get-completion-table relative-files denote-file-prompt-extra-metadata)
+                 nil (unless no-require-match t)
                  nil 'denote-file-history))
          (absolute-file (if single-dir-p
                             (expand-file-name input default-directory)
@@ -1874,8 +1888,8 @@ OMIT-CURRENT have been applied."
     (intern
      (completing-read
       (format-prompt "Sort by file name component" default)
-      (denote--completion-table 'denote-sort-component denote-sort-components)
-      nil :require-match nil 'denote-sort-component-history default))))
+      (denote-get-completion-table denote-sort-components '(category . denote-sort-component))
+      nil t nil 'denote-sort-component-history default))))
 
 (defvar denote-sort-exclude-files-history nil
   "Minibuffer history for `denote-sort-exclude-files-prompt'.")
@@ -1952,33 +1966,6 @@ If REVERSE is nil, use the value of the user option
             "\n"
             (propertize "No more matching files" 'face 'warning))))
 
-(defun denote-sort-dired--prepare-buffer (directory files-fn dired-name buffer-name)
-  "Prepare buffer for `denote-sort-dired'.
-DIRECTORY is an absolute path to the `default-directory' of the Dired
-listing.
-
-FILES-FN is a function that returns the files to be listed in the Dired
-buffer.
-
-DIRED-NAME is a string passed to Dired as (cons DIRED-NAME FILES)),
-where FILES is the return value of FILES-FN.
-
-BUFFER-NAME is the name of the resulting buffer."
-  (let* ((default-directory directory)
-         (files (funcall files-fn))
-         (dired-buffer (dired (cons dired-name files))))
-    (with-current-buffer dired-buffer
-      (rename-buffer buffer-name :unique)
-      (setq-local revert-buffer-function
-                  (lambda (&rest _)
-                    (if-let* ((default-directory directory)
-                              (files (funcall files-fn)))
-                        (progn
-                          (setq-local dired-directory (cons dired-name files))
-                          (dired-revert))
-                      (denote-dired-empty-mode)))))
-    buffer-name))
-
 ;;;###autoload
 (defun denote-sort-dired (files-matching-regexp sort-by-component reverse exclude-regexp)
   "Produce Dired buffer with sorted files from variable `denote-directory'.
@@ -2008,20 +1995,30 @@ When called from Lisp, the arguments are a string, a symbol among
 `denote-sort-components', a non-nil value, and a string, respectively."
   (interactive (append (list (denote-files-matching-regexp-prompt)) (denote-sort-dired--prompts)))
   (pcase-let* ((`(,component . ,reverse-sort) (denote-sort-dired--get-sort-parameters sort-by-component reverse))
-               (single-dir-p (denote-has-single-denote-directory-p))
                (files-fn `(lambda ()
-                            (let ((files (denote-sort-get-directory-files ,files-matching-regexp ',component ,reverse-sort nil ,exclude-regexp)))
-                              (if ,single-dir-p
-                                  (mapcar #'file-relative-name files)
-                                files)))))
-    (if-let* ((directory (if single-dir-p ; see comment in `denote-file-prompt'
-                             (car (denote-directories))
-                           (denote-directories-get-common-root)))
-              (files (funcall files-fn))
-              (dired-name (format-message files-matching-regexp))
-              (buffer-name (funcall denote-sort-dired-buffer-name-function files-matching-regexp sort-by-component reverse-sort exclude-regexp)))
-        (denote-sort-dired--prepare-buffer directory files-fn dired-name buffer-name)
-      (message "No matching files for: %s" files-matching-regexp))))
+                            (let ((files (denote-sort-get-directory-files ,files-matching-regexp ',component ,reverse-sort nil ,exclude-regexp))
+                                  (partial-relative-fn ,(let ((directory (denote-directories-get-common-root)))
+                                                          (lambda (file)
+                                                            (when (string-prefix-p directory file)
+                                                              (substring file (length directory)))))))
+                              (mapcar partial-relative-fn files)))))
+    (dlet ((ls-lisp-use-insert-directory-program (progn (require 'ls-lisp) nil)))
+      (if-let* ((directory (and (not (null (denote-directories)))
+                                (denote-directories-get-common-root)))
+                (files (funcall files-fn))
+                (buffer-name (funcall denote-sort-dired-buffer-name-function files-matching-regexp sort-by-component reverse-sort exclude-regexp))
+                (dired-buffer (dired (cons directory files))))
+          (with-current-buffer dired-buffer
+            (rename-buffer buffer-name :unique)
+            (setq-local revert-buffer-function
+                        (lambda (&rest _)
+                          (dlet ((ls-lisp-use-insert-directory-program (progn (require 'ls-lisp) nil)))
+                            (if-let* ((files (funcall files-fn)))
+                                (progn
+                                  (setq-local dired-directory (cons directory files))
+                                  (dired-revert))
+                              (denote-dired-empty-mode))))))
+        (message "No matching files for: %s" files-matching-regexp)))))
 
 (defalias 'denote-dired 'denote-sort-dired
   "Alias for `denote-sort-dired' command.")
@@ -2749,31 +2746,19 @@ Also see `denote-extract-keywords-from-path' (alias
     (when (string-match denote-title-regexp filename)
       (match-string 1 filename))))
 
-(defun denote--file-with-temp-buffer-subr (file)
-  "Return path to FILE or its buffer together with the appropriate function.
-Subroutine of `denote--file-with-temp-buffer'."
-  (let* ((buffer (get-file-buffer file))
-         (file-exists (file-exists-p file))
-         (buffer-modified (buffer-modified-p buffer)))
-    (cond
-     ((or (and file-exists
-               buffer
-               (not buffer-modified)
-               (not (eq buffer-modified 'autosaved)))
-          (and file-exists (not buffer)))
-      (cons #'insert-file-contents file))
-     (buffer
-      (cons #'insert-buffer buffer))
-     ;; (t
-     ;;  (error "Cannot find anything about file `%s'" file))
-     )))
-
 (defmacro denote--file-with-temp-buffer (file &rest body)
-  "If FILE exists, insert its contents in a temp buffer and call BODY."
+  "Evaluate BODY with FILE contents in scope.
+If a buffer is visiting FILE, insert the buffer contents into a
+temporary buffer.  Otherwise, insert the contents of FILE.  Then call
+BODY."
   (declare (indent 1))
-  `(when-let* ((file-and-function (denote--file-with-temp-buffer-subr ,file)))
+  `(let* ((buffer (get-file-buffer ,file))
+          (file-exist (file-exists-p ,file)))
      (with-temp-buffer
-       (funcall (car file-and-function) (cdr file-and-function))
+       (cond
+        (buffer (insert-buffer-substring buffer))
+        (file-exist (insert-file-contents ,file))
+        (t (error "Cannot find anything about file `%s'" ,file)))
        (goto-char (point-min))
        ,@body)))
 
@@ -3253,8 +3238,8 @@ This is a reference function for `denote-get-identifier-function'."
     (intern
      (completing-read
       (format-prompt "Run note-creating Denote command" default)
-      denote-commands-for-new-notes nil :require-match
-      nil 'denote-command-prompt-history default))))
+      (denote-get-completion-table denote-commands-for-new-notes '(category . command))
+       nil t nil 'denote-command-prompt-history default))))
 
 ;;;;; The `denote' command and its prompts
 
@@ -3286,27 +3271,25 @@ command that needs to supply a default title before calling
 COMMAND is the symbol of a file-creating command to call, such as
 `denote' or `denote-signature'.
 
-With non-nil FORCE-USE-FILE-PROMPT-AS-DEFAULT-TITLE, use the last
-item of `denote-file-history' as the default title of the title
-prompt.  This is useful in a command such as `denote-link' where
-the entry of the file prompt can be reused as the default title.
+With non-nil FORCE-USE-FILE-PROMPT-AS-DEFAULT-TITLE, use the last item
+of `denote-file-history' as the default title of the title prompt.  This
+is useful in a command such as `denote-link' where the entry of the file
+prompt can be reused as the default title.
 
-With non-nil FORCE-IGNORE-REGION, the region is ignore when
-creating the note, i.e. it will not be used as the initial title
-in a title prompt.  Else, the value of
-`denote-ignore-region-in-denote-command' is respected.
+With non-nil FORCE-IGNORE-REGION, ignore the region when creating the
+note: do not use its text as the initial title in a title prompt.  Else,
+do whatever `denote-ignore-region-in-denote-command' entails.
 
-With non-nil FORCE-SAVE, the file is saved at the end of the note
-creation.  Else, the value of `denote-save-buffers' is respected.
+With non-nil FORCE-SAVE, save the file at the end of the note creation.
+Else, do whatever the value of `denote-save-buffers' entails.
 
-With non-nil IN-BACKGROUND, the note creation happens in the
-background, i.e. the note's buffer will not be displayed after
-the note is created.
+With non-nil IN-BACKGROUND, create the note in the background: do not
+display the note's buffer after it is created.
 
 Note that if all parameters except COMMAND are nil, this is
 equivalent to `(call-interactively command)'.
 
-The path of the newly created file is returned."
+Return the path of the newly created file."
   (let ((denote-save-buffers
          (or force-save denote-save-buffers))
         (denote-ignore-region-in-denote-command
@@ -3692,23 +3675,27 @@ a value that can be parsed by `decode-time' or nil."
 (defalias 'denote--subdir-history 'denote-subdirectory-history
   "Compatibility alias for `denote-subdirectory-history'.")
 
-;; Making it a completion table is useful for packages that read the
-;; metadata, such as `marginalia' and `embark'.
-(defun denote--subdirs-completion-table (dirs)
-  "Match DIRS as a completion table."
-  (let* ((def (car denote-subdirectory-history))
-         (table (denote--completion-table 'file dirs))
-         (prompt (format-prompt "Select SUBDIRECTORY" def)))
-    (completing-read prompt table nil t nil 'denote-subdirectory-history def)))
-
+;; TODO 2025-12-14: Explore if we can have relative paths here.  The
+;; problem is that we also return the root `denote-directory', so how
+;; should that be presented?  Maybe as "."?
 (defun denote-subdirectory-prompt ()
   "Prompt for subdirectory of the variable `denote-directory'.
 The table uses the `file' completion category (so it works with
 packages such as `marginalia' and `embark')."
-  (let* ((roots (mapcar #'directory-file-name (denote-directories)))
-         (subdirs (denote-directory-subdirectories))
-         (dirs (append roots subdirs)))
-    (denote--subdirs-completion-table dirs)))
+  (let* ((default (car denote-subdirectory-history))
+         (roots (denote-directories))
+         (single-dir-p (null (cdr roots)))
+         ;; Some external program may use `default-directory' with the
+         ;; relative file paths of the completion candidates.
+         (default-directory (if single-dir-p
+                                (car roots)
+                              (denote-directories-get-common-root)))
+         (subdirectories (denote-directory-subdirectories))
+         (directories (append roots subdirectories)))
+    (completing-read
+     (format-prompt "Select SUBDIRECTORY" default)
+     (denote-get-completion-table directories '(category . file))
+     nil t nil 'denote-subdirectory-history default)))
 
 (defvar denote-template-history nil
   "Minibuffer history of `denote-template-prompt'.")
@@ -3958,14 +3945,22 @@ matches in the file.
 
 Return nil if the file type is not recognized."
   (when-let* ((extension (denote-get-file-extension-sans-encryption file))
-              (types (denote--file-types-with-extension extension)))
-    (if (= (length types) 1)
-        (caar types)
-      (or (car (seq-find
-                (lambda (type)
-                  (denote--regexp-in-file-p (plist-get (cdr type) :title-key-regexp) file))
-                types))
-          (caar types)))))
+              (types (denote--file-types-with-extension extension))
+              (length (length types)))
+    (cond
+     ((= length 1)
+      (caar types))
+     ((car (seq-find
+            (lambda (type)
+              (denote--regexp-in-file-p (plist-get (cdr type) :title-key-regexp) file))
+            types)))
+     ;; If the user has picked something like `markdown-toml' and this
+     ;; is an ".md" file, we can fall back to this.
+     ((and (> length 1)
+           (memq denote-file-type (mapcar #'car types)))
+      denote-file-type)
+     (t
+      (caar types)))))
 
 (defun denote-filetype-heuristics (file)
   "Return likely file type of FILE.
@@ -5362,8 +5357,13 @@ See the `:link' property of `denote-file-types'."
    (denote-retrieve-filename-identifier file)
    description))
 
-(defun denote-link-description-with-signature-and-title (file)
-  "Return link description for FILE.
+;; NOTE 2025-11-23: The only reason I have &optional is because I want
+;; it to be backward compatible.  We used to have a single FILE
+;; parameter.
+(defun denote-link-description-with-signature-and-title (file &optional file-type)
+  "Return link description for FILE with FILE-TYPE.
+For backward compatibility, FILE-TYPE is an optional parameter.  If it
+is nil, then compute FILE-TYPE internally.
 
 - If the region is active, use it as the description.
 
@@ -5373,11 +5373,14 @@ See the `:link' property of `denote-file-types'."
 - If FILE does not have a signature, then use its title as the
   description.
 
-This is useful as the value of the user option
-`denote-link-description-function'."
-  (let* ((file-type (denote-filetype-heuristics file))
+- If none of the above works, return an empty string.
+
+This function is useful as the value of the user option
+`denote-link-description-format' (which can optionally be bound to a
+function)."
+  (let* ((type (or file-type (denote-filetype-heuristics file)))
          (signature (denote-retrieve-filename-signature file))
-         (title (denote-retrieve-title-or-filename file file-type))
+         (title (denote-retrieve-title-or-filename file type))
          (region-text (denote--get-active-region-content)))
     (cond
      (region-text region-text)
@@ -5388,36 +5391,49 @@ This is useful as the value of the user option
 
 (defun denote--get-active-region-content ()
   "Return the text of the active region, else nil."
-  (when-let* (((region-active-p))
+  (when-let* ((_ (region-active-p))
               (beg (region-beginning))
-              (end (region-end)))
-    (string-trim (buffer-substring-no-properties beg end))))
+              (end (region-end))
+              (contents (buffer-substring-no-properties beg end))
+              (_ (not (string-blank-p contents))))
+    (string-trim contents)))
 
 (defun denote--delete-active-region-content ()
   "Delete the content of the active region, if any."
-  (when-let* (((region-active-p))
+  (when-let* ((_ (region-active-p))
               (beg (region-beginning))
               (end (region-end)))
     (delete-region beg end)))
 
-(defun denote-get-link-description (file)
+(defun denote-get-link-description (file &optional file-type)
   "Return a link description for FILE.
 
-If `denote-link-description-format' is a function, call it with FILE as
-an argument.  The function should return a string, representing the link
+If `denote-link-description-format' is a function, call it with FILE and
+FILE-TYPE as argument.  It should return a string, representing the link
 description.
 
 If the user option `denote-link-description-format' is a string, parse
 it to substitute any format specifiers therein with their respective
 values (see the documentation of that user option).  If the region is
-active, use it as the description."
+active, use it as the description.
+
+For backward compatibility, support the scenario where the function
+assigned to `denote-link-description-format' accepts a single FILE
+argument.  In that case, the function takes care to find the TYPE on its
+own to return the appropriate description."
   (cond
    ((functionp denote-link-description-format)
-    (funcall denote-link-description-format file))
+    ;; NOTE 2025-11-23: `denote-link-description-format' used to
+    ;; accept a function with a single parameter.  Now we expect two
+    ;; arguments, but must be backward compatible.
+    (if (> (cdr (func-arity denote-link-description-format)) 1)
+        (funcall denote-link-description-format file file-type)
+      (display-warning 'denote "The `denote-link-description-format' function is now called with FILE and FILE-TYPE" :warning)
+      (funcall denote-link-description-format file)))
    ((stringp denote-link-description-format)
     (if-let* ((region (denote--get-active-region-content)))
         region
-      (let ((type (denote-filetype-heuristics file)))
+      (let ((type (or file-type (denote-filetype-heuristics file))))
         (string-trim
          (format-spec denote-link-description-format
                       (list (cons ?t (cond
@@ -5525,16 +5541,20 @@ selected one.
 
 With optional PROMPT-TEXT use it for the minibuffer prompt instead of
 the generic one."
-  (let* ((single-dir-p (denote-has-single-denote-directory-p))
+  (let* ((roots (denote-directories))
+         (single-dir-p (null (cdr roots)))
          (file-names (if single-dir-p
-                         (mapcar #'denote-get-file-name-relative-to-denote-directory files)
+                         (mapcar
+                          (lambda (file)
+                            (denote--get-file-name-relative-to-directories file roots))
+                          files)
                        files))
          (selected (completing-read
                     (format-prompt (or prompt-text "Select file among files") nil)
-                    (denote--completion-table 'file file-names)
+                    (apply 'denote-get-completion-table file-names denote-file-prompt-extra-metadata)
                     nil t nil 'denote-link-find-file-history)))
     (if single-dir-p
-        (expand-file-name selected (car (denote-directories)))
+        (expand-file-name selected (car roots))
       selected)))
 
 (define-obsolete-function-alias
@@ -5658,6 +5678,29 @@ file's title.  This has the same meaning as in `denote-link'."
 (defalias 'denote-link-to-existing-or-new-note 'denote-link-or-create
   "Alias for `denote-link-or-create' command.")
 
+;;;###autoload
+(defun denote-link-or-create-with-command (&optional id-only)
+  "Like `denote-link-or-create' but prompt for a note-making command.
+Use this to, for example, call `denote-signature' when the target file
+does not exist, so that the newly created note has a signature as part
+of its file name.
+
+Optional ID-ONLY has the same meaning as in the command
+`denote-link-or-create'."
+  (declare (interactive-only t))
+  (interactive "P")
+  (let ((target (denote-file-prompt nil "Select file (RET on no match to create it)" :no-require-match :has-identifier)))
+    (unless (file-exists-p target)
+      (setq target (denote--command-with-features (denote-command-prompt) :use-file-prompt-as-def-title :ignore-region :save :in-background)))
+    (unless (or (denote--file-type-org-extra-p)
+                (and buffer-file-name
+                     (denote-file-has-supported-extension-p buffer-file-name)))
+      (user-error "The current file type is not recognized by Denote"))
+    (denote-link target
+                 (denote-filetype-heuristics (buffer-file-name))
+                 (denote-get-link-description target)
+                 id-only)))
+
 ;;;;; Links' buffer (query links and backlinks using `denote-query-mode')
 
 (define-obsolete-function-alias
@@ -5757,7 +5800,10 @@ sorting of query buffers on demand by calling the command
 (defcustom denote-backlinks-display-buffer-action
   '((display-buffer-reuse-mode-window display-buffer-below-selected)
     (mode . denote-query-mode)
-    (window-height . fit-window-to-buffer))
+    (dedicated . t)
+    (preserve-size . (t . t))
+    (window-height . fit-window-to-buffer)
+    (body-function . select-window))
   "The action used to display the current file's backlinks buffer.
 
 The value has the form (FUNCTION . ALIST), where FUNCTION is
@@ -5786,14 +5832,16 @@ and/or the documentation string of `display-buffer'."
                          (function :tag "Matcher function"))
                  :value-type ,display-buffer--action-custom-type)
           (function :tag "Custom function to return an action alist"))
-  :package-version '(denote . "3.1.0")
+  :package-version '(denote . "4.2.0")
   :group 'denote-query)
 
 (defcustom denote-query-links-display-buffer-action
   '((display-buffer-reuse-mode-window display-buffer-below-selected)
     (mode . (denote-query-mode dired))
-    (window-height . 0.3)
-    (preserve-size . (t . t)))
+    (dedicated . t)
+    (preserve-size . (t . t))
+    (window-height . fit-window-to-buffer)
+    (body-function . select-window))
   "The action used to display query links.
 This is the same as `denote-backlinks-display-buffer-action'.  Refer to
 its documentation for the technicalities."
@@ -5805,15 +5853,18 @@ its documentation for the technicalities."
                          (function :tag "Matcher function"))
                  :value-type ,display-buffer--action-custom-type)
           (function :tag "Custom function to return an action alist"))
-  :package-version '(denote . "4.0.0")
+  :package-version '(denote . "4.2.0")
   :group 'denote-query)
 
-(defcustom denote-query-format-heading-function #'identity
+(defcustom denote-query-format-heading-function #'denote-get-file-name-relative-to-denote-directory
   "Function used to construct headings for files matched by a query.
 
 It is called with a single argument, the path to the note file, and it
-should always return a string."
-  :package-version '(denote . "4.0.0")
+should always return a string.
+
+This is used in the buffer that shows backlinks, query links for file
+contents, or the results of `denote-grep'."
+  :package-version '(denote . "4.2.0")
   :link '(info-link "(denote) Use denote-grep to search inside files")
   :group 'denote-query
   :type 'function)
@@ -5832,7 +5883,7 @@ Used only by `denote-query-extract-title'."
 
 When no title is found, return title found in FILE name.
 
-When that doesn't work, return `denote-grep-untitled-string'.
+When that doesn't work, return `denote-query-untitled-string'.
 
 Intended to be used as `denote-query-format-heading-function'."
   (if-let* ((type (denote-filetype-heuristics file))
@@ -6052,6 +6103,9 @@ When called from Lisp, COMPONENT has the same meaning as in the function
   "Minibuffer history of content searches performed by `denote-grep'.
 Also see `denote-grep-file-regexp-history'.")
 
+;; NOTE 2025-12-12: Unlike `denote-query-links-display-buffer-action'
+;; we want `denote-grep' to behave like `denote-dired', whereby
+;; `dired' normally works in the current window.
 (defcustom denote-grep-display-buffer-action
   '((display-buffer-same-window)
     (mode . denote-query-mode))
@@ -6377,29 +6431,32 @@ search for."
 
 (make-obsolete 'denote-link--find-file-at-button nil "4.0.0")
 
-;; NOTE 2025-03-24: This does not work for query links because of how
-;; `markdown-follow-link-at-point' is implemented to always check for
-;; links.
-(defun denote-link-markdown-follow (link)
-  "Function to open Denote file present in LINK.
+;; NOTE 2025-12-12: The `markdown-follow-link-functions' assumes that
+;; the link of a specific format, but this is not good enough for us
+;; because of the query links we support.  I think it is okay to
+;; ignore LINK and just act on the link at point.
+(defun denote-link-markdown-follow (_link)
+  "Function for to act on Markdown link at point.
 To be assigned to `markdown-follow-link-functions'."
-  (when (ignore-errors (string-match denote-date-identifier-regexp link))
-    (funcall denote-open-link-function
-             (denote-get-path-by-id (match-string 0 link)))))
+  (denote-link-open-at-point))
 
 (eval-after-load 'markdown-mode
   '(add-hook 'markdown-follow-link-functions #'denote-link-markdown-follow))
 
 ;;;;; Link fontification
 
-;; TODO 2024-06-19: We need to bind RET and maybe even C-c C-o to a
-;; command that opens the link at point.  Then we may also rename this
-;; keymap.
-(defvar denote-link-mouse-map
+(define-obsolete-variable-alias
+  'denote-link-mouse-map
+  'denote-fontify-links-map
+  "4.2.0")
+
+(defvar denote-fontify-links-map
   (let ((map (make-sparse-keymap)))
+    (define-key map (kbd "RET") #'denote-link-open-at-point)
+    (define-key map (kbd "C-c C-o") #'denote-link-open-at-point)
+    (define-key map [mouse-1] #'denote-link-open-at-mouse)
     (define-key map [mouse-2] #'denote-link-open-at-mouse)
     (define-key map [mouse-3] #'denote-link-open-at-mouse)
-    (define-key map [follow-link] 'mouse-face)
     map)
   "Keymap for mouse actions over fontified Denote links.")
 
@@ -6487,31 +6544,29 @@ Use optional DATA, else get the data with `denote-fontify-links--get-data'."
     (when (and type query)
       (catch 'exit
         (while (re-search-forward query limit t)
-          (save-match-data  ; to return the matches to font-lock
-            (let* ((start (match-beginning 0))
-                   (end (match-end 0))
-                   (visible-start (or (match-beginning 2) start))
-                   (visible-end (or (match-end 2) end))
-                   (query (match-string-no-properties 1)))
-              (let* ((properties `( face ,(denote-get-link-face query)
-                                    mouse-face highlight
-                                    keymap ,denote-link-mouse-map
-                                    denote-link-query-part ,query
-                                    help-echo query
-                                    htmlize-link (:uri ,query)
-                                    font-lock-multiline t))
-                     (non-sticky-props
-                      '(rear-nonsticky (mouse-face highlight keymap invisible intangible help-echo htmlize-link)))
-                     (face-property 'link)
-                     (hidden (append '(invisible 'denote-link) properties)))
-                (remove-text-properties start end '(invisible nil))
-                (add-text-properties start visible-start hidden)
-                (add-face-text-property start end face-property)
-                (add-text-properties visible-start visible-end properties)
-                (add-text-properties visible-end end hidden)
-                (dolist (pos (list end visible-start visible-end))
-                  (add-text-properties (1- pos) pos non-sticky-props)))
-              (throw 'exit t))))
+          (let* ((start (match-beginning 0))
+                 (end (match-end 0))
+                 (visible-start (or (match-beginning 2) start))
+                 (visible-end (or (match-end 2) end))
+                 (query (match-string-no-properties 1)))
+            (let* ((properties `( mouse-face highlight
+                                  keymap ,denote-fontify-links-map
+                                  denote-link-query-part ,query
+                                  help-echo query
+                                  htmlize-link (:uri ,query)
+                                  font-lock-multiline t))
+                   (non-sticky-props
+                    '(rear-nonsticky (mouse-face highlight keymap invisible help-echo htmlize-link)))
+                   (face-property (denote-get-link-face query))
+                   (hidden (append '(invisible 'denote-fontified-link) properties)))
+              (remove-text-properties start end '(invisible nil))
+              (add-text-properties start visible-start hidden)
+              (add-face-text-property start end face-property)
+              (add-text-properties visible-start visible-end properties)
+              (add-text-properties visible-end end hidden)
+              (dolist (pos (list end visible-start visible-end))
+                (add-text-properties (1- pos) pos non-sticky-props)))
+            (throw 'exit t)))
         nil))))
 
 (define-obsolete-function-alias
@@ -6535,43 +6590,53 @@ To be used as a `thing-at' provider."
 
 (defvar thing-at-point-provider-alist)
 
-;;;###autoload
-(defun denote-fontify-links-mode-maybe ()
-  "Enable `denote-fontify-links-mode' in a denote file unless in `org-mode'."
-  (when (and buffer-file-name
-             (not (derived-mode-p 'org-mode))
-             (denote-file-is-in-denote-directory-p buffer-file-name)
-             (denote-file-has-supported-extension-p buffer-file-name)
-             (denote-file-has-denoted-filename-p buffer-file-name))
-    (denote-fontify-links-mode)))
+(define-obsolete-function-alias
+  'denote-fontify-links-mode-maybe
+  'denote-fontify-links-mode
+  "4.2.0")
 
 ;;;###autoload
 (define-minor-mode denote-fontify-links-mode
-  "A minor mode to fontify and fold Denote links.
-
-Enabled this mode only when the current buffer is a Denote note and the
-major mode is not `org-mode' (or derived therefrom).  Consider using
-`denote-fontify-links-mode-maybe' for this purpose."
+  "Fontify Denote links in plain text buffers.
+Do so only when the current buffer is a Denote note and the major mode
+is not `org-mode' or `markdown-mode' (or any major mode derived
+therefrom)."
   :init-value nil
   :global nil
   :group 'denote
   (require 'thingatpt)
-  (if denote-fontify-links-mode
+  (if (and buffer-file-name
+           (not (derived-mode-p 'org-mode 'markdown-mode))
+           (denote-file-is-in-denote-directory-p buffer-file-name)
+           (denote-file-has-supported-extension-p buffer-file-name)
+           (denote-file-has-denoted-filename-p buffer-file-name))
       (progn
-        (add-to-invisibility-spec 'denote-link)
-        (denote-fontify-links--set-data)
-        (font-lock-add-keywords nil '((denote-fontify-links)))
-        (setq-local thing-at-point-provider-alist
-                    (append thing-at-point-provider-alist
-                            '((url . denote--get-link-file-path-at-point)))))
-    (remove-from-invisibility-spec 'denote-link)
-    (kill-local-variable 'denote-fontify-links--data)
-    (font-lock-remove-keywords nil '((denote-fontify-links)))
-    (setq-local thing-at-point-provider-alist
-                (delete
-                 '(url . denote--get-link-file-path-at-point)
-                 thing-at-point-provider-alist)))
-  (font-lock-update))
+        (if denote-fontify-links-mode
+            (progn
+              (add-to-invisibility-spec 'denote-fontified-link)
+              (denote-fontify-links--set-data)
+              (font-lock-add-keywords nil '((denote-fontify-links)))
+              (setq-local thing-at-point-provider-alist
+                          (append thing-at-point-provider-alist
+                                  '((url . denote--get-link-file-path-at-point)))))
+          (remove-from-invisibility-spec 'denote-fontified-link)
+          (kill-local-variable 'denote-fontify-links--data)
+          (font-lock-remove-keywords nil '((denote-fontify-links)))
+          (setq-local thing-at-point-provider-alist
+                      (delete
+                       '(url . denote--get-link-file-path-at-point)
+                       thing-at-point-provider-alist)))
+        (font-lock-update))
+    ;; NOTE 2026-01-02: If we do not set the value here, then it is
+    ;; toggled on/off even though the above `if' never reaches its
+    ;; THEN branch.
+    (setq denote-fontify-links-mode nil)
+    ;; NOTE 2026-01-02: In interactive use, we get a message that the
+    ;; mode is disabled if we call it in non-supported buffers.  I
+    ;; tried to `let' bind the `inhibit-message' but that did not
+    ;; work.  So I am doing this instead...
+    (when (called-interactively-p 'interactive)
+      (message "`denote-fontify-links-mode' works only in plain text buffers inside the `denote-directory'"))))
 
 ;;;;; Add links matching regexp
 
@@ -6612,13 +6677,15 @@ Optional NO-SORT is passed to `denote-link--prepare-links'."
 
 ;;;###autoload
 (defun denote-add-links (regexp &optional id-only)
-  "Insert links to all files whose file names match REGEXP.
+  "Insert links to all files whose file name matches REGEXP.
 Use this command to reference multiple files at once.  Particularly
 useful for the creation of metanotes (read the manual for more on the
 matter).
 
 Optional ID-ONLY has the same meaning as in `denote-link': it
-inserts links with just the identifier."
+inserts links with just the identifier.
+
+Also see `denote-link-to-all-files-with-contents'."
   (interactive
    (list
     (denote-files-matching-regexp-prompt "Insert links to files matching REGEXP")
@@ -6630,6 +6697,9 @@ inserts links with just the identifier."
     (if-let* ((files (denote-directory-files regexp :omit-current nil nil :has-identifier)))
         (denote-link--insert-links files file-type id-only)
       (message "No links matching `%s'" regexp))))
+
+(defalias 'denote-link-to-all-files-with-regexp 'denote-add-links
+  "Alias for `denote-add-links'.")
 
 ;;;;; Link to file with matching contents
 
@@ -6647,7 +6717,7 @@ to files matching QUERY.  Optional ID-ONLY has the same meaning as in
             (file (completing-read
                    (format "Select FILE with contents `%s': "
                            (propertize query 'face 'denote-faces-prompt-current-name))
-                   (denote--completion-table 'file files)
+                   (denote-get-completion-table files '(category . file))
                    nil t nil 'denote-file-history)))
       (denote-link file
                    (denote-filetype-heuristics buffer-file-name)
@@ -6675,16 +6745,20 @@ contents, not file names.  Optional ID-ONLY has the same meaning as in
 ;; NOTE 2022-07-21: I don't think we need a history for this one.
 (defun denote-link--buffer-file-prompt (buffer-file-names)
   "Select file from BUFFER-FILE-NAMES of Denote notes."
-  (let* ((single-dir-p (denote-has-single-denote-directory-p))
+  (let* ((roots (denote-directories))
+         (single-dir-p (null (cdr roots)))
          (file-names (if single-dir-p
-                         (mapcar #'denote-get-file-name-relative-to-denote-directory buffer-file-names)
+                         (mapcar
+                          (lambda (file)
+                            (denote--get-file-name-relative-to-directories file roots))
+                          buffer-file-names)
                        buffer-file-names))
          (selected (completing-read
                     "Select open note to add links to: "
-                    (denote--completion-table 'file file-names)
+                    (denote-get-completion-table file-names '(category . file))
                     nil t)))
     (if single-dir-p
-        (expand-file-name selected (car (denote-directories)))
+        (expand-file-name selected roots)
       selected)))
 
 (defun denote-link--map-over-notes ()
@@ -6812,6 +6886,9 @@ This command is meant to be used from a Dired buffer."
     ["Link to existing note or newly created one" denote-link-or-create
      :help "Insert a link to an existing file, else create it and link to it"
      :enable (derived-mode-p 'text-mode)]
+    ["Link to existing note or newly created one with the chosen command" denote-link-or-create-with-command
+     :help "Insert a link to an existing file, else create it with the given command and link to it"
+     :enable (derived-mode-p 'text-mode)]
     ["Create note in the background and link to it directly" denote-link-after-creating
      :help "Create new note and link to it from the current file"
      :enable (derived-mode-p 'text-mode)]
@@ -6915,7 +6992,7 @@ query of file contents or file names (see the commands
 
 Uses the function `denote-directory' to establish the path to the file."
   (if-let* ((match (denote-link--ol-resolve-link-to-target link))
-            (_ (file-exists-p (string-trim-right match ":[^/]+.*"))))
+            (_ (file-exists-p (string-trim-right match "::.*"))))
       (org-link-open-as-file match nil)
     (denote--act-on-query-link match)))
 
@@ -7026,9 +7103,20 @@ backend."
          (target (caar data)))
     (denote-get-path-by-id target)))
 
+(declare-function org-link-preview-file "ol" (ov path link))
+
+;;;###autoload
+(defun denote-link-preview-file (overlay link-target link-data)
+  "Use `org-link-preview-file' for OVERLAY, LINK-TARGET, and LINK-DATA.
+Unless the LINK-TARGET has search options, then try to produce a preview.
+
+For more details, refer to the documentation of `org-link-set-parameters'."
+  (pcase-let* ((`(,path ,_ ,file-search) (denote-link--ol-resolve-link-to-target link-target :full-data)))
+    (unless file-search
+      (org-link-preview-file overlay path link-data))))
+
 ;; The `eval-after-load' part with the quoted lambda is adapted from
 ;; Elfeed: <https://github.com/skeeto/elfeed/>.
-
 ;;;###autoload
 (eval-after-load 'org
   `(funcall
@@ -7039,6 +7127,7 @@ backend."
         (with-no-warnings
           (org-link-set-parameters
            "denote"
+           :preview #'denote-link-preview-file
            :follow #'denote-link-ol-follow
            :face #'denote-get-link-face
            :help-echo #'denote-link-ol-help-echo
@@ -7106,7 +7195,7 @@ Consult the manual for template samples."
 ;; by passing a single PROMPTS that is the same value as `denote-prompts'?
 
 ;;;###autoload
-(defun denote-org-capture-with-prompts (&optional title keywords subdirectory date template)
+(defun denote-org-capture-with-prompts (&optional title keywords subdirectory date template signature)
   "Like `denote-org-capture' but with optional prompt parameters.
 
 When called without arguments, do not prompt for anything.  Just
@@ -7115,9 +7204,9 @@ the date and identifier fields specified.  Also make the file
 name consist of only the identifier plus the Org file name
 extension.
 
-Otherwise produce a minibuffer prompt for every non-nil value
-that corresponds to the TITLE, KEYWORDS, SUBDIRECTORY, DATE, and
-TEMPLATE arguments.  The prompts are those used by the standard
+Otherwise produce a minibuffer prompt for every non-nil value that
+corresponds to the TITLE, KEYWORDS, SUBDIRECTORY, DATE, TEMPLATE,
+SIGNATURE arguments.  The prompts are those used by the standard
 `denote' command and all of its utility commands.
 
 When returning the contents that fill in the Org capture
@@ -7129,6 +7218,7 @@ must exist---Denote does not create them.  Same principle for
 TEMPLATE as templates must exist and are specified in the user
 option `denote-templates'."
   (let ((denote-prompts '()))
+    (when signature (push 'signature denote-prompts))
     (when template (push 'template denote-prompts))
     (when date (push 'date denote-prompts))
     (when subdirectory (push 'subdirectory denote-prompts))
@@ -7272,7 +7362,9 @@ This is called if `denote-rename-buffer-rename-function' is nil."
 (defun denote-rename-buffer-rename-function-or-fallback ()
   "Call `denote-rename-buffer-function' or its fallback to rename with title.
 Add this to `find-file-hook' and `denote-after-new-note-hook'."
-  (funcall (or denote-rename-buffer-function #'denote-rename-buffer--fallback)))
+  (when-let* ((file (buffer-file-name))
+              ((denote-file-has-identifier-p file)))
+    (funcall (or denote-rename-buffer-function #'denote-rename-buffer--fallback))))
 
 ;;;###autoload
 (define-minor-mode denote-rename-buffer-mode

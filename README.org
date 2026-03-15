@@ -51,7 +51,7 @@ the GNU ELPA machinery automatically generates an Info manual out of it.
 :CUSTOM_ID: h:40b18bb2-4dc1-4202-bd0b-6fab535b2a0f
 :END:
 
-Copyright (C) 2022-2025  Free Software Foundation, Inc.
+Copyright (C) 2022-2026  Free Software Foundation, Inc.
 
 #+begin_quote
 Permission is granted to copy, distribute and/or modify this document
@@ -184,10 +184,10 @@ Here we include more of what you can configure with Denote ([[#h:998ae528-9276-4
 (use-package denote
   :ensure t
   :hook
-  ( ;; If you use Markdown or plain text files, then you want to make
-   ;; the Denote links clickable (Org renders links as buttons right
-   ;; away)
-   (text-mode . denote-fontify-links-mode-maybe)
+  (;; If you use plain text files (.txt), then you want to make the
+   ;; Denote links clickable (Org mode and Markdown mode render links
+   ;; as buttons right away and provide commands to open them)
+   (text-mode . denote-fontify-links-mode)
    ;; Apply colours to Denote names in Dired.  This applies to all
    ;; directories.  Check `denote-dired-directories' for the specific
    ;; directories you may prefer instead.  Then, instead of
@@ -253,7 +253,10 @@ view on how to get started with Denote:
 1. Create new text files with =M-x denote= ([[#h:17896c8c-d97a-4faa-abf6-31df99746ca6][Points of entry]]).
 2. Rename any file anywhere with =M-x denote-rename-file=. There are
    many variations of this command, such as ~denote-dired-rename-marked-files~ ([[#h:532e8e2a-9b7d-41c0-8f4b-3c5cbb7d4dca][Renaming files]]).
-3. Link to another Denote file with =M-x denote-link= ([[#h:5e5e3370-12ab-454f-ba09-88ff44214324][Add a single direct link using a file name prompt]]).
+3. Link to another Denote file with a given file name using the
+   command =M-x denote-link= ([[#h:5e5e3370-12ab-454f-ba09-88ff44214324][Add a single direct link using a file name prompt]]).
+   Or link to a file whose contents match a query with the command
+   ~denote-link-to-file-with-contents~ ([[#h:25a983ca-049e-43d4-8f6e-06a2325e2c3c][Add a direct link to a file whose contents include the given query]]).
 4. From any file with a Denote file name, view backlinks with =M-x
    denote-backlinks= ([[#h:c73f1f68-e214-49d5-b369-e694f6a5d708][The backlinks' buffer]]).
 5. Instead of linking to a file, create a "link" to a search through
@@ -518,8 +521,7 @@ of the following:
   contexts like =home= and =work=, or even priorities like =a=, =b=,
   =c=. One other use-case is to implement a sequencing scheme that
   makes notes have hierarchical relationships. This is handled by our
-  optional extension =denote-sequence.el=, which is part of the
-  ~denote~ package ([[#h:d5ca722d-e7fa-46fa-9a57-6363b1d4186f][Write sequence notes or "folgezettel"]]).
+  optional extension =denote-sequence.el=, which is its own package ([[#h:d5ca722d-e7fa-46fa-9a57-6363b1d4186f][Write sequence notes or "folgezettel"]]).
 
 The prompts occur in the given order.
 
@@ -992,8 +994,9 @@ consist of only the identifier plus the Org file name extension ([[#h:4e9c7512-8
 
 Otherwise, it produces a minibuffer prompt for every non-nil value
 that corresponds to the =TITLE=, =KEYWORDS=, =SUBDIRECTORY=, =DATE=,
-and =TEMPLATE= arguments.  The prompts are those used by the standard
-~denote~ command and all of its utility commands ([[#h:17896c8c-d97a-4faa-abf6-31df99746ca6][Points of entry]]).
+=TEMPLATE=, and =SIGNATURE= arguments. The prompts are those used by
+the standard ~denote~ command and all of its utility commands ([[#h:17896c8c-d97a-4faa-abf6-31df99746ca6][Points of entry]]).
+[ The =SIGNATURE= was missing in previous versions and is now part of {{{development-version}}}. ]
 
 When returning the contents that fill in the Org capture template, the
 sequence is as follows: front matter, =TEMPLATE=, and then the value
@@ -1256,9 +1259,9 @@ to, for example, make further edits to the available text.
 
 The ~denote-open-or-create-with-command~ is like the above, except
 when it is about to create the new note it first prompts for the
-specific file-creating command to use ([[#h:17896c8c-d97a-4faa-abf6-31df99746ca6][Points of entry]]).  For example,
-the user may want to specify a signature for this new file, so they
-can select the ~denote-signature~ command.
+specific file-creating command to use ([[#h:98c732ac-da0e-4ebd-a0e3-5c47f9075e51][Choose which commands to prompt for]]).
+For example, the user may want to specify a signature for this
+new file, so they can select the ~denote-signature~ command.
 
 Denote provides similar functionality for linking to an existing note
 or creating a new one ([[#h:b6056e6b-93df-4e6b-a778-eebd105bac46][Link to a note or create it if missing]]).
@@ -1918,6 +1921,20 @@ difference between old and new file names.
 
 This command constructs the file name in accordance with the user option
 ~denote-file-name-components-order~ ([[#h:dc8c40e0-233a-4991-9ad3-2cf5f05ef1cd][Change the order of file name components]]).
+
+** Rename a file by changing only its identifier
+:PROPERTIES:
+:CUSTOM_ID: h:10c16536-0535-4b4c-b0dc-d106bdc951a1
+:END:
+
+#+findex: denote-rename-file-identifier
+The command ~denote-rename-file-identifier~ prompts for a new
+identifier to apply to the given file. The current identifier is added
+as the initial minibuffer text. An empty input means to remove the
+identifier altogether.
+
+An identifier that is already used in links cannot be modified,
+otherwise all links will break.
 
 ** Rename a file by adding or removing a title interactively
 :PROPERTIES:
@@ -2774,6 +2791,43 @@ Slightly modified version of `denote-generate-identifier-as-date'."
             (my-denote-format-date (or date (current-time))))))))
 #+end_src
 
+*** A custom identifier without the time separator
+:PROPERTIES:
+:CUSTOM_ID: h:d238cd1f-a185-4dbe-a9f3-0dea29273e1f
+:END:
+
+The default Denote identifier consists of the date as =YYYYMMDD=, then
+the letter =T=, and then the time as =HHMMSS=. Users who do not want
+the letter =T= there can use the following:
+
+#+begin_src emacs-lisp
+(setq denote-get-identifier-function #'my-denote-generate-identifier-without-time-separator)
+
+(defconst my-denote-date-identifier-format-without-time-separator
+  (replace-regexp-in-string "T" "" denote-date-identifier-format))
+
+(defun my-denote-generate-identifier-without-time-separator (initial-identifier date)
+  "Generate an identifier based on DATE.
+
+If INITIAL-IDENTIFIER is not already used, return it.  Else, if it is
+possible to derive an identifier from it, return this identifier.
+
+Else, use the DATE.  If it is nil, use `current-time'.
+
+Slightly modified version of `denote-generate-identifier-as-date'."
+  (let ((denote-used-identifiers (or denote-used-identifiers (denote--get-all-used-ids))))
+    (cond ((and initial-identifier
+                (not (gethash initial-identifier denote-used-identifiers)))
+           initial-identifier)
+          ((and initial-identifier
+                (string-match-p denote-date-identifier-regexp initial-identifier)
+                (date-to-time initial-identifier))
+           (denote--find-first-unused-id-as-date initial-identifier))
+          (t
+           (denote--find-first-unused-id-as-date
+            (format-time-string my-denote-date-identifier-format-without-time-separator (or date (current-time))))))))
+#+end_src
+
 *** A custom identifier to encode publisher data
 :PROPERTIES:
 :CUSTOM_ID: h:f92cd454-51f4-4403-9061-3b2efaef2851
@@ -3195,6 +3249,7 @@ the active theme).
 :END:
 
 #+findex: denote-add-links
+#+findex: denote-link-to-all-files-with-regexp
 The command ~denote-add-links~ adds links at point to all file names
 in the ~denote-directory~ that match a regular expression or plain
 string. This is similar to the ~denote-link~ command, which
@@ -3207,6 +3262,9 @@ as a typographic list, such as:
 - link2
 - link3
 #+end_example
+
+[ The ~denote-link-to-all-files-with-regexp~ is an alias for
+  ~denote-add-links~ as part of {{{development-version}}}. ]
 
 Each link is formatted according to the file type of the current note,
 as explained further above about the ~denote-link~ command.  The current
@@ -3427,10 +3485,10 @@ this end, Denote provides two convenience commands:
 #+findex: denote-link-after-creating-with-command
 + ~denote-link-after-creating-with-command~ :: This command is like
   ~denote-link-after-creating~ except it prompts for a note-creating
-  command ([[*Points of entry][Points of entry]]).  Use this to, for example, call
-  ~denote-signature~ so that the newly created note has a signature as
-  part of its file name.  Optional =ID-ONLY= has the same meaning as
-  in the command ~denote-link-after-creating~.
+  command ([[#h:98c732ac-da0e-4ebd-a0e3-5c47f9075e51][Choose which commands to prompt for]]). Use this to, for
+  example, call ~denote-signature~ so that the newly created note has
+  a signature as part of its file name. Optional =ID-ONLY= has the
+  same meaning as in the command ~denote-link-after-creating~.
 
 #+findex: denote-link-or-create
 + ~denote-link-or-create~ :: Use ~denote-link~ on =TARGET= file,
@@ -3451,6 +3509,12 @@ this end, Denote provides two convenience commands:
 
   This command has the alias ~denote-link-to-existing-or-new-note~,
   which helps with discoverability.
+
+#+findex: denote-link-or-create-with-command
++ ~denote-link-or-create-with-command~ :: This command is the same
+  concept as ~denote-link-or-create~ except it prompts for the
+  specific command for creating a new note ([[#h:98c732ac-da0e-4ebd-a0e3-5c47f9075e51][Choose which commands to prompt for]]).
+  [ The ~denote-link-or-create-with-command~ is part of {{{development-version}}}. ]
 
 In all of the above, an optional prefix argument (=C-u= by default)
 creates a link that consists of just the identifier.  This has the
@@ -3596,38 +3660,28 @@ appropriate than the other.
 :CUSTOM_ID: h:156c5ea3-147b-4f9d-a404-86a00558c60a
 :END:
 
+[ Revised as part of {{{development-version}}} to only target the
+  generic ~text-mode~. Org mode and Markdown mode are both excluded
+  because they work with Denote links by default. This revision also
+  inlcudes the =RET= and =C-c C-o= key bindings for fontified links. ]
+
 #+findex: denote-fontify-links-mode
-Denote links are automatically fontified in Org buffers ([[#h:5e5e3370-12ab-454f-ba09-88ff44214324][Adding a single link]]).
-This means that Org recognises the link and applies the relevant
-properties to it to make it clickable/actionable. Other major modes,
-such as ~markdown-mode~ (for =.md= files) or ~text-mode~ (for =.txt=
-files) do not have this feature built into them. Users can still get
-the same behaviour as with Org by activating the ~denote-fontify-links-mode~.
-
-The ~denote-fontify-links-mode~ is a buffer-local minor mode. Users can enable
-it automatically in plain text files that correspond to denote notes with
-something like this:
-
-#+begin_src emacs-lisp
-(add-hook 'text-mode-hook #'denote-fontify-links-mode-maybe)
-#+end_src
-
-The ~text-mode-hook~ applies to all modes derived from ~text-mode~, including
-~markdown-mode~. Though a more explicit setup does no harm:
+Denote links are automatically fontified in Org mode and Markdown mode
+buffers ([[#h:5e5e3370-12ab-454f-ba09-88ff44214324][Adding a single link]]). This means that the given major mode
+recognises the link and applies to it the relevant properties that
+make it clickable/actionable. The generic ~text-mode~ (for =.txt=
+files) does not have this capability, hence the ~denote-fontify-links-mode~:
+it makes all Denote links actionable with the mouse, =RET=, or =C-c C-o=.
+The ~denote-fontify-links-mode~ is a buffer-local minor mode. Users
+can enable it automatically in plain text files that correspond to
+denote notes with something like this:
 
 #+begin_src emacs-lisp
-(add-hook 'markdown-mode-hook #'denote-fontify-links-mode-maybe)
+(add-hook 'text-mode-hook #'denote-fontify-links-mode)
 #+end_src
 
-Because Org already recognises =denote:= links, the function
-~denote-fontify-links-mode-maybe~ will not enable the mode
-~denote-fontify-links-mode~ in Org buffers.
-
-#+findex: denote-link-markdown-follow
-In files whose major mode is ~markdown-mode~, the default key binding
-=C-c C-o= (which calls the command ~markdown-follow-thing-at-point~)
-correctly resolves =denote:= links. Interested users can refer to the
-function ~denote-link-markdown-follow~ for the implementation details.
+Fontified links can be opened with =RET=, =C-c C-o=, or a mouse click
+(=C-c C-o= is also the default for Org and Markdown).
 
 ** The ~denote-link-description-format~ to format link descriptions
 :PROPERTIES:
@@ -3639,11 +3693,17 @@ command ~denote-link~ and related functions create a link description
 by default.
 
 The value can be either a function or a string. If it is a function,
-it is called with one argument, the file, and should return a string
-representing the link description.
+it is called with two argument, the file and file type, and should
+return a string representing the link description. The default is a
+function that returns the active region or the title of the note (with
+the signature if present).
 
-The default is a function that returns the active region or the title of
-the note (with the signature if present).
+For backward compatibility, the function can also take a single
+parameter, the given file. In that case, it is responsible for
+figuring out the file type in order to return the correct description.
+
+[ The calling convention for the function with two arguments is
+  introduced as part of {{{development-version}}}. ]
 
 If the value is a string, it treats specially the following specifiers:
 
@@ -4129,10 +4189,14 @@ the same window where the command ~denote-grep~ is called from.
 :CUSTOM_ID: h:435592bc-e896-429f-a599-9f1bcd5ab9b8
 :END:
 
+#+vindex: denote-query-format-heading-function
 Denote commands, such as ~denote-grep~, ~denote-backlinks~, and
 ~denote-query-contents-link~, produce an Xref buffer with search
 results ([[#h:893eec49-d7be-4603-bcff-fcc247244011][Speed up backlinks' or query links' buffer creation?]]).
-Matching lines are grouped by the file name they belong to.
+Matching lines are grouped by the file name they belong to. File names
+are formatted according to the function bound to the user option
+~denote-query-format-heading-function~. By default, file names are
+rendered relative to the ~denote-directory~.
 
 - [[#h:e71c9d14-7e88-4386-91d0-9ad249947077][Use ~denote-grep~ to search inside files]].
 - [[#h:c73f1f68-e214-49d5-b369-e694f6a5d708][The backlinks' buffer]].
@@ -4492,6 +4556,23 @@ package provides commands to interact with the list of notes, such as
 to filter them and to transition from the tabular list to Dired.  Its
 documentation expands on the technicalities.
 
+** Use the ~denote-review~ package
+:PROPERTIES:
+:CUSTOM_ID: h:46294e0c-4155-425f-abd8-b6f83bc29f53
+:END:
+
+The [[https://codeberg.org/mattof/denote-review][~denote-review~]] package by Matto Fransen implements a a simple
+review process for Denote notes.
+
+The package provides options to extend the frontmatter of some notes
+with a ~reviewdate~ field. It also provides an ordered tabulated list
+of notes and their review date. The user is prompted to select either
+all notes in a directory or to narrow to a single keyword.
+
+Select a note in this list to edit, or request a random note from the
+list to edit. Update the ~reviewdate~ of the note with a single
+command.
+
 ** Use the ~denote-zettel-interface~ package
 :PROPERTIES:
 :CUSTOM_ID: h:b57f73fc-ac4d-4df2-bd7a-8d47cb202647
@@ -4509,6 +4590,29 @@ their files, navigate around, and the like.
 Note that the package is in early development as of this writing
 (2024-12-03 10:18 +0200).
 
+** Use the ~mir~ package for incremental reading
+:PROPERTIES:
+:CUSTOM_ID: h:0560dbf3-25a1-4eae-aa9e-5900d7e37a2e
+:END:
+
+The [[https://github.com/gvalson/mir.el][mir package]] builds on top of ~denote~, ~denote-sequence~ and
+Emacs' SQLite support to provide a workflow for prioritizing,
+scheduling and reading a massive amount of text and extracting the
+most useful parts out of it. This is accomplished using a process
+called incremental reading (for more information, see the package's
+README). ~denote~ is used as a backbone for storing imported
+documents such that they are easily modifiable, uniquely identifiable
+and easy to genealogically query. In particular, the file's ID is
+used to store scheduling information in the database and the keyword
+component is used to build a tree-like hierarchy (i.e. a sequence of
+notes) that makes it easy to see where the source of a given
+extracted note is.
+
+As of writing this (January 2026), ~mir~ is still in heavy development
+and does not feature all the functionality that would make it a valid
+replacement of other incremental reading tools. However, work is
+underway to make it feature-complete.
+
 * Extending Denote
 :PROPERTIES:
 :CUSTOM_ID: h:8ed2bb6f-b5be-4711-82e9-8bee5bb06ece
@@ -4519,6 +4623,53 @@ them, based on the aforementioned file-naming scheme. For other common
 operations the user is advised to rely on standard Emacs facilities or
 specialised third-party packages ([[#h:08b14682-e73f-4b11-b2e2-be3b788c8572][Packages that build on Denote]]). This
 section covers the details.
+
+** Define a custom file type to automatically encrypt new notes
+:PROPERTIES:
+:CUSTOM_ID: h:647ea7d0-7168-4ef7-8043-40403d924789
+:END:
+
+#+vindex: denote-file-types
+Denote can work with any file type. By default, it works with those
+defined in the variable ~denote-file-types~. The documentation string
+of that variable explains the technicalities.
+
+Users who simply want to write files with something like a =.org.gpg=
+extension can add the following to their configuration:
+
+#+begin_src emacs-lisp
+;; This is the same as the default `denote-file-types' entry for
+;; `org', except for the :extension.  I gave it a different name (the
+;; `org-gpg'), to distinguish it from the default.
+(add-to-list 'denote-file-types
+             '(org-gpg
+               :extension ".org.gpg"
+               :front-matter denote-org-front-matter
+               :title-key-regexp "^#\\+title\\s-*:"
+               :title-value-function denote-format-string-for-org-front-matter
+               :title-value-reverse-function denote-trim-whitespace
+               :keywords-key-regexp "^#\\+filetags\\s-*:"
+               :keywords-value-function denote-format-keywords-for-org-front-matter
+               :keywords-value-reverse-function denote-extract-keywords-from-front-matter
+               :signature-key-regexp "^#\\+signature\\s-*:"
+               :signature-value-function denote-format-string-for-org-front-matter
+               :signature-value-reverse-function denote-trim-whitespace
+               :identifier-key-regexp "^#\\+identifier\\s-*:"
+               :identifier-value-function denote-format-string-for-org-front-matter
+               :identifier-value-reverse-function denote-trim-whitespace
+               :date-key-regexp "^#\\+date\\s-*:"
+               :date-value-function denote-date-org-timestamp
+               :date-value-reverse-function denote-extract-date-from-front-matter
+               :link-retrieval-format "[denote:%VALUE%]"
+               :link denote-org-link-format
+               :link-in-context-regexp denote-org-link-in-context-regexp))
+#+end_src
+
+With this in place, the command ~denote-type~ will include the
+=org-gpg= file type in its minibuffer prompt for a file type
+([[#h:887bdced-9686-4e80-906f-789e407f2e8f][Convenience commands for note creation]]). Same principle if the user
+option ~denote-prompts~ is configured to include the =file-type=
+prompt ([[#h:f9204f1f-fcee-49b1-8081-16a08a338099][The ~denote-prompts~ option]]).
 
 ** Access the data of the latest note
 :PROPERTIES:
@@ -4613,9 +4764,8 @@ Empty files are those that satisfy `my-denote--note-has-no-contents-p'."
                              (car (denote-directories))
                            (denote-directories-get-common-root)))
               (files (funcall files-fn))
-              (dired-name (format-message files-matching-regexp))
               (buffer-name (funcall denote-sort-dired-buffer-name-function (format "%s (EMPTY)" files-matching-regexp) sort-by-component reverse-sort exclude-regexp)))
-        (denote-sort-dired--prepare-buffer directory files-fn dired-name buffer-name)
+        (denote-sort-dired--prepare-buffer directory files-fn buffer-name)
       (message "No matching files for: %s" files-matching-regexp))))
 
 (defun my-denote-sort-dired-without-empty-files (files-matching-regexp sort-by-component reverse exclude-regexp)
@@ -4634,9 +4784,8 @@ Empty files are those that satisfy `my-denote--note-has-no-contents-p'."
                              (car (denote-directories))
                            (denote-directories-get-common-root)))
               (files (funcall files-fn))
-              (dired-name (format-message files-matching-regexp))
               (buffer-name (funcall denote-sort-dired-buffer-name-function (format "%s (OMIT EMPTY)" files-matching-regexp) sort-by-component reverse-sort exclude-regexp)))
-        (denote-sort-dired--prepare-buffer directory files-fn dired-name buffer-name)
+        (denote-sort-dired--prepare-buffer directory files-fn buffer-name)
       (message "No matching files for: %s" files-matching-regexp))))
 
 (defun my-denote-sort-dired-all-empty-files ()
@@ -5503,12 +5652,6 @@ The following sections cover the specifics.
   of valid files in variable ~denote-directory~. Consider files that
   satisfy ~denote-file-has-identifier-p~ and are not backups.
 
-#+vindex: denote-directory-get-files-function
-+ Variable ~denote-directory-get-files-function~ :: Function to return
-  list of Denote files. Each file is a string representing an absolute
-  file system path. This is intended for use in the function
-  ~denote-directory-files~.
-
 #+findex: denote-directory-files
 + Function ~denote-directory-files~ :: Return list of absolute file
   paths in variable ~denote-directory~. Files that match
@@ -5522,7 +5665,9 @@ The following sections cover the specifics.
   files that satisfy ~denote-file-is-note-p~. With optional
   =EXCLUDE-REGEXP= exclude the files that match the given regular
   expression. This is done after =FILES-MATCHING-REGEXP= and
-  =OMIT-CURRENT= have been applied.
+  =OMIT-CURRENT= have been applied. With optional =HAS-IDENTIFIER= as
+  a non-~nil~ value, limit the results to files that have an
+  identifier.
 
 #+findex: denote-directory-subdirectories
 + Function ~denote-directory-subdirectories~ :: Return list of
@@ -6047,22 +6192,24 @@ there will be no corresponding prompt.
 
 #+findex: denote-link-description-with-signature-and-title
 + Function ~denote-link-description-with-signature-and-title~ :: Return
-  link description for =FILE=.  Produce a description as follows:
+  link description for =FILE= with =FILE-TYPE=. For backward
+  compatibility, =FILE-TYPE= is an optional parameter. If it is ~nil~,
+  then compute =FILE-TYPE= internally. [ =FILE-TYPE= is added as part
+  of {{{development-version}}}. ]
 
   - If the region is active, use it as the description.
 
-  - If =FILE= as a signature, then use the
-    ~denote-link-signature-format~.  By default, this looks like
-    "signature title".
+  - If =FILE= has a signature, then format the description as a sequence
+    of the signature text and the title with two spaces between them.
 
   - If =FILE= does not have a signature, then use its title as the
     description.
 
-#+vindex: denote-link-description-function
-+ Variable ~denote-link-description-function~ :: Function to use to
-  create the description of links. The function specified should take
-  a =FILE= argument and should return the description as a string. By
-  default, the title of the file is returned as the description.
+  - If none of the above works, return an empty string.
+
+  This function is useful as the value of the user option
+  ~denote-link-description-format~ (which can optionally be bound to a
+  function).
 
 ** Xref interface for developers or advanced users
 :PROPERTIES:
@@ -6812,23 +6959,25 @@ Denote is meant to be a collective effort.  Every bit of help matters.
 + Author/maintainer :: Protesilaos Stavrou.
 
 + Contributions to code or the manual :: Abdul-Lateef Haji-Ali, Abin
-  Simon, Adam Růžička, Alan Schmitt, Alexandre Rousseau, Ashish
-  Panigrahi, Ashton Wiersdorf, Aziz, Benjamin Kästner, Bruno Boal,
-  Charanjit Singh, Claudio Migliorelli, Clemens Radermacher, Colin
-  McLear, Damien Cassou, Eduardo Grajeda, Elias Storms, Eshel Yaron,
-  Florian, Glenna D., Graham Marlow, Hilde Rhyne, Ivan Sokolov, Jack
-  Baty, Jakub Szczerbowski, James Kalyan, Jean-Charles Bagneris,
+  Simon, Adam Růžička, Alan Schmitt, Alexandre Rousseau, Alvin Hsu,
+  Ashish Panigrahi, Ashton Wiersdorf, Aziz, Benjamin Kästner, Bruno
+  Boal, Charanjit Singh, Claudio Migliorelli, Clemens Radermacher,
+  Colin McLear, Damien Cassou, Eduardo Grajeda, Elias Storms, Eshel
+  Yaron, Florian, Glenna D., Graham Marlow, Hilde Rhyne, Ivan Sokolov,
+  Jack Baty, Jakub Szczerbowski, James Kalyan, Jean-Charles Bagneris,
   Jean-Philippe Gagné Guay, Jianwei Hou, Joseph Turner, Jürgen Hötzel,
   Kaushal Modi, Kai von Fintel, Kierin Bell, Kostas Andreadis,
   Kristoffer Balintona, Kyle Meyer, Laurent Gatto, Lucas Quintana,
-  Maikol Solis, Marc Fargas, Matthew Lemon, Noboru Ota (nobiot),
-  Norwid Behrnd, Octavian, Peter Prevos, Philip Kaludercic, Ryota,
-  Quiliro Ordóñez, Stephen R. Kifer, Stefan Monnier, Stefan Thesing,
-  Thibaut Benjamin, Tomasz Hołubowicz, TomoeMami , Vedang Manerikar,
-  Wesley Harvey, Yann Dutrieux, Zhenxu Xu, arsaber101, bryanrinders,
-  eum3l, experimental-code-86, ezchi, jarofromel, leinfink (Henrik),
-  l-o-l-h (Lincoln), mattyonweb, maxbrieiev, mentalisttraceur,
-  pmenair, relict007, skissue.
+  Maikol Solis, Marc Fargas, Matthew Batson, Matthew Lemon, Matto
+  Fransen, Noboru Ota (nobiot), Norwid Behrnd, Octavian, Peter Prevos,
+  Philip Kaludercic, Ryota, Samuel W. Flint, Quiliro Ordóñez, Stephen
+  R. Kifer, Stefan Monnier, Stefan Thesing, Thibaut Benjamin, Tobias
+  Lidman-Strauss, Tomasz Hołubowicz, TomoeMami , Vedang Manerikar,
+  Wesley Harvey, Yann Dutrieux, Zhenxu Xu, alvmts, arsaber101,
+  bryanrinders, dulikiles, eum3l, experimental-code-86, ezchi,
+  gvalson, jarofromel, leinfink (Henrik), l-o-l-h (Lincoln),
+  mattyonweb, maxbrieiev, mentalisttraceur, pmenair, relict007,
+  skissue.
 
 + Ideas and/or user feedback :: Abin Simon, Aditya Yadav, Alan
   Schmitt, Aleksandr Vityazev, Alex Griffin, Alex Hirschfeld, Alexis
@@ -6841,17 +6990,18 @@ Denote is meant to be a collective effort.  Every bit of help matters.
   Valk, Jens Östlund, Jeremy Friesen, Jonathan Sahar, Johan Bolmsjö,
   Jonas Großekathöfer, Jousimies, Juanjo Presa, Julian Hoch, Kai von
   Fintel, Kaushal Modi, Kolmas, Lukas C. Bossert, M. Hadi Timachi,
-  Maikol Solis, Mark Olson, Mirko Hernandez, Morten Kjeldgaard, Niall
-  Dooley, Nick Bell, Oliver Epper, Paul van Gelder, Peter Prevos,
-  Peter Smith, Riccardo Giannitrapani, Rory Molinari, Samuel W. Flint,
-  Sergio Rey, Suhail Singh, Shreyas Ragavan, Stefan Thesing, Summer
-  Emacs, Sven Seebeck, Taoufik, TJ Stankus, Vick (VicZz), Viktor Haag,
-  Vineet C. Kulkarni, Wade Mealing, Wilf, Yi Liu, Ypot, atanasj,
-  azegas, babusri, bdillahu, coherentstate, doolio, duli, drcxd,
-  elge70, elliottw, fingerknight, hpgisler, hyperfocus1337,johkneisl,
-  jtpavlock, juh, leafarbelm, mentalisttraceur, mjkalyan, oatmealm,
-  pRot0ta1p, rbenit68, relict007, sarcom-sar, sienic, skissue, sundar
-  bp, wuzhihao, yetanotherfossman, zadca123
+  Maikol Solis, Mark Olson, Michael Jones, Mirko Hernandez, Morten
+  Kjeldgaard, Niall Dooley, Nick Bell, Oliver Epper, Paul van Gelder,
+  Peter Prevos, Peter Smith, Riccardo Giannitrapani, Rory Molinari,
+  Samuel W. Flint, Sergio Rey, Suhail Singh, Shreyas Ragavan, Stefan
+  Thesing, Summer Emacs, Sven Seebeck, Taoufik, TJ Stankus, Vick
+  (VicZz), Viktor Haag, Vineet C. Kulkarni, Wade Mealing, Wilf, Yi
+  Liu, Ypot, atanasj, azegas, babusri, bdillahu, coherentstate,
+  doolio, duli, drcxd, elge70, elliottw, fingerknight, hpgisler,
+  hyperfocus1337,johkneisl, jtpavlock, juh, leafarbelm,
+  mentalisttraceur, mjkalyan, oatmealm, Pratik-Mishra-4979, pRot0ta1p,
+  rbenit68, relict007, sarcom-sar, sienic, skissue, sundar bp,
+  wuzhihao, yetanotherfossman, zadca123
 
 Special thanks to Peter Povinec who helped refine the file-naming
 scheme, which is the cornerstone of this project.
